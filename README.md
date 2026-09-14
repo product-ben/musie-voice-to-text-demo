@@ -58,6 +58,24 @@ public or production — that needs a small server minting short-lived `ek_` tok
 
 ---
 
+## Why a session ends
+
+A session that stops without explanation reads as random. There are exactly three
+reasons, and the UI always names the one that applied:
+
+| Reason | Shown as |
+| --- | --- |
+| You pressed Stop | "Stopped." |
+| The 60-second limit | "Stopped: the 60-second limit was reached." |
+| A fatal error | "Stopped because of the error above." |
+
+**Rate limits no longer end the session.** Every sentence is a separate API request, so
+on a low tier the third sentence of an ordinary session can be rejected. That used to
+kill the socket and lose the rest of the recording. Now a rate-limited sentence is
+skipped with an amber warning and recording continues. Only an unrecoverable problem —
+a bad key, a rejected session config, a dropped socket, or a microphone failure — stops
+the session.
+
 ## Privacy: what happens to your voice and text
 
 The app shows this as an expandable note on the page. Summarised, and checked against

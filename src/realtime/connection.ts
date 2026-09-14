@@ -90,15 +90,8 @@ export function connectRealtime(
         break;
 
       case "error": {
-        const param: string = event.error?.param ?? "";
-        // Name the cause when a turn-detection mode is rejected, so the
-        // experiment page reports "this mode is unsupported" rather than
-        // a generic failure.
-        const message = param.includes("turn_detection")
-          ? `The "${segmentation}" mode was rejected by OpenAI: ${event.error?.message} ` +
-            `Switch to Silence to keep working.`
-          : (event.error?.message ?? "OpenAI reported an error.");
-        onEvent({ type: "error", message });
+        const { fatal, message } = classifyError(event.error, segmentation);
+        onEvent({ type: fatal ? "error" : "warning", message });
         break;
       }
     }
@@ -138,6 +131,33 @@ export function connectRealtime(
  * Rate-limit messages are the one error users hit repeatedly, and OpenAI's
  * wording buries the cause, so name it plainly.
  */
+/**
+ * Decides whether an error should end the session. Rate limits must not:
+ * every sentence is a separate request, so on a low tier the third sentence
+ * of a normal session can be rejected. Killing the session there loses the
+ * rest of the recording over something that clears in seconds.
+ */
+function classifyError(
+  error: { code?: string; message?: string; param?: string } | undefined,
+  segmentation: SegmentationMode,
+): { fatal: boolean; message: string } {
+  const code = error?.code ?? "";
+  const param = error?.param ?? "";
+
+  if (param.includes("turn_detection")) {
+    return {
+      fatal: true,
+      message:
+        `The "${segmentation}" splitting mode was rejected by OpenAI: ${error?.message} ` +
+        `Switch to Silence to keep working.`,
+    };
+  }
+  if (code === "rate_limit_exceeded") {
+    return { fatal: false, message: friendlyFailure(error) };
+  }
+  return { fatal: true, message: error?.message ?? "OpenAI reported an error." };
+}
+
 function friendlyFailure(error: { code?: string; message?: string } | undefined): string {
   if (error?.code === "rate_limit_exceeded") {
     return (

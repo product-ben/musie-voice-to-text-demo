@@ -7,12 +7,16 @@ import { onSentenceFinal } from "../onSentenceFinal";
 
 export type Status = "idle" | "connecting" | "recording";
 
+/** Why the last session ended — so the UI never has to say "it just stopped". */
+export type StopReason = "manual" | "timeout" | "error" | null;
+
 export function useTranscription() {
   const [status, setStatus] = useState<Status>("idle");
   const [sentences, setSentences] = useState<string[]>([]);
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  const [stopReason, setStopReason] = useState<StopReason>(null);
   /** Loudness of the newest audio chunk (0–1), for the microphone meter. */
   const [level, setLevel] = useState(0);
   /** True while OpenAI's VAD is hearing speech. */
@@ -21,32 +25,35 @@ export function useTranscription() {
 
   const connection = useRef<RealtimeConnection | null>(null);
   const recorder = useRef<Recorder | null>(null);
-  const countdown = useRef<number | null>(null);
+  /** Wall-clock end of the session, so reconnects don't reset the countdown. */
+  const deadline = useRef(0);
 
-  const stop = useCallback(() => {
+  const stop = useCallback((reason: StopReason = "manual") => {
     recorder.current?.stop();
     recorder.current = null;
     connection.current?.close();
     connection.current = null;
-    if (countdown.current !== null) {
-      clearInterval(countdown.current);
-      countdown.current = null;
-    }
     setInterim("");
     setLevel(0);
     setSpeaking(false);
-    setStatus("idle");
+    setStatus((previous) => {
+      // Only record a reason if a session was actually running.
+      if (previous !== "idle") setStopReason(reason);
+      return "idle";
+    });
   }, []);
 
   const start = useCallback(
     async (apiKey: string, language: LanguageChoice, segmentation: SegmentationMode = "silence") => {
       setError(null);
       setWarning(null);
+      setStopReason(null);
       setLevel(0);
       setSpeaking(false);
       setSentences([]);
       setInterim("");
       setSecondsLeft(SESSION_SECONDS);
+      deadline.current = Date.now() + SESSION_SECONDS * 1000;
       setStatus("connecting");
 
       connection.current = connectRealtime(apiKey, language, segmentation, (event) => {
@@ -74,45 +81,48 @@ export function useTranscription() {
             break;
           case "error":
             setError(event.message);
-            stop();
+            stop("error");
             break;
         }
       });
 
       try {
-        const started = await startRecorder((chunk, chunkLevel) => {
+        recorder.current = await startRecorder((chunk, chunkLevel) => {
           connection.current?.sendAudio(chunk);
           setLevel(chunkLevel);
         });
-        recorder.current = started;
       } catch (micError) {
         setError(
           micError instanceof MicrophoneError ? micError.message : "Could not start recording.",
         );
-        stop();
-        return;
+        stop("error");
       }
-
-      countdown.current = window.setInterval(() => {
-        setSecondsLeft((remaining) => {
-          if (remaining <= 1) {
-            stop();
-            return 0;
-          }
-          return remaining - 1;
-        });
-      }, 1000);
     },
     [stop],
   );
 
+  // The countdown reads a fixed deadline, so stopping happens inside the timer
+  // callback rather than as a side effect of rendering.
+  useEffect(() => {
+    if (status === "idle") return;
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining === 0) {
+        clearInterval(timer);
+        stop("timeout");
+      }
+    }, 250);
+    return () => clearInterval(timer);
+  }, [status, stop]);
+
   // Close the socket if the tab is closed mid-session.
   useEffect(() => {
-    const handleUnload = () => stop();
+    const handleUnload = () => stop("manual");
     window.addEventListener("beforeunload", handleUnload);
     return () => {
       window.removeEventListener("beforeunload", handleUnload);
-      stop();
+      stop("manual");
     };
   }, [stop]);
 
@@ -122,6 +132,7 @@ export function useTranscription() {
     interim,
     error,
     warning,
+    stopReason,
     level,
     speaking,
     secondsLeft,

@@ -11,11 +11,12 @@ import { Transcript } from "./Transcript";
 import { ErrorBanner } from "./ErrorBanner";
 import { SegmentedToggle } from "./SegmentedToggle";
 import { MicIndicator } from "./MicIndicator";
+import { Step, type StepState } from "./Stepper";
+import { StopNotice } from "./StopNotice";
 
 // sessionStorage, not localStorage: the key dies when the tab closes.
 const KEY_STORAGE = "openai-api-key";
 
-/** Shown only on the lab page, where the segmentation mode is selectable. */
 type Props = { showSegmentation?: boolean };
 
 export function RecorderPanel({ showSegmentation = false }: Props) {
@@ -24,8 +25,13 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
   const [segmentation, setSegmentation] = useState<SegmentationMode>(
     showSegmentation ? "punctuation" : "silence",
   );
-  const { status, sentences, interim, error, warning, level, speaking, secondsLeft, start, stop } =
-    useTranscription();
+  // Start on the settings step if a key is already in this tab.
+  const [step, setStep] = useState(() => (sessionStorage.getItem(KEY_STORAGE) ? 2 : 1));
+
+  const {
+    status, sentences, interim, error, warning, stopReason,
+    level, speaking, secondsLeft, start, stop,
+  } = useTranscription();
 
   const isRunning = status !== "idle";
 
@@ -37,12 +43,26 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
   function forgetKey() {
     setApiKey("");
     sessionStorage.removeItem(KEY_STORAGE);
+    setStep(1);
   }
 
+  const stateOf = (index: number): StepState =>
+    step === index ? "active" : step > index ? "done" : "upcoming";
+
+  const languageLabel = LANGUAGE_OPTIONS.find((o) => o.value === language)?.label ?? language;
+  const segmentationLabel =
+    SEGMENTATION_OPTIONS.find((o) => o.value === segmentation)?.label ?? segmentation;
+
   return (
-    <>
-      <section className="panel">
-        <label htmlFor="apiKey">OpenAI API key</label>
+    <div className="steps">
+      <Step
+        index={1}
+        title="Enter your API key"
+        state={stateOf(1)}
+        summary={`Key ending …${apiKey.slice(-4)} · kept in this tab only`}
+        onEdit={() => setStep(1)}
+        editDisabled={isRunning}
+      >
         <div className="row">
           <input
             id="apiKey"
@@ -50,10 +70,9 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
             value={apiKey}
             onChange={(event) => saveKey(event.target.value)}
             placeholder="sk-..."
-            disabled={isRunning}
             autoComplete="off"
           />
-          <button type="button" onClick={forgetKey} disabled={isRunning || !apiKey}>
+          <button type="button" onClick={forgetKey} disabled={!apiKey}>
             Forget key
           </button>
         </div>
@@ -62,9 +81,19 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
           stored on a server or committed to the repository. Use a key with a low spending limit
           and revoke it when you are done.
         </p>
-      </section>
+        <button type="button" className="primary" disabled={!apiKey} onClick={() => setStep(2)}>
+          Continue
+        </button>
+      </Step>
 
-      <section className="panel">
+      <Step
+        index={2}
+        title="Choose your settings"
+        state={stateOf(2)}
+        summary={showSegmentation ? `${languageLabel} · ${segmentationLabel}` : languageLabel}
+        onEdit={() => setStep(2)}
+        editDisabled={isRunning}
+      >
         <span className="field-label">Language</span>
         <SegmentedToggle
           label="Language"
@@ -73,26 +102,30 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
           onChange={setLanguage}
           disabled={isRunning}
         />
-      </section>
 
-      {showSegmentation && (
-        <section className="panel">
-          <span className="field-label">Sentence splitting</span>
-          <SegmentedToggle
-            label="Sentence splitting"
-            options={SEGMENTATION_OPTIONS}
-            value={segmentation}
-            onChange={setSegmentation}
-            disabled={isRunning}
-          />
-          <p className="note">{describe(segmentation)}</p>
-        </section>
-      )}
+        {showSegmentation && (
+          <>
+            <span className="field-label spaced">Sentence splitting</span>
+            <SegmentedToggle
+              label="Sentence splitting"
+              options={SEGMENTATION_OPTIONS}
+              value={segmentation}
+              onChange={setSegmentation}
+              disabled={isRunning}
+            />
+            <p className="note">{describe(segmentation)}</p>
+          </>
+        )}
 
-      <section className="panel">
+        <button type="button" className="primary" onClick={() => setStep(3)}>
+          Continue
+        </button>
+      </Step>
+
+      <Step index={3} title="Talk" state={stateOf(3)}>
         <div className="row">
           {isRunning ? (
-            <button type="button" onClick={stop} className="primary">
+            <button type="button" onClick={() => stop("manual")} className="primary">
               Stop
             </button>
           ) : (
@@ -100,24 +133,40 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
               type="button"
               onClick={() => start(apiKey, language, segmentation)}
               className="primary"
-              disabled={!apiKey}
             >
-              Start
+              {stopReason ? "Record again" : "Start"}
             </button>
           )}
-          <span className="countdown">{secondsLeft}s</span>
+          <span className="countdown">{secondsLeft}s left</span>
           <MicIndicator status={status} level={level} speaking={speaking} />
         </div>
-        {!apiKey && <p className="note">Enter an API key to enable recording.</p>}
-      </section>
 
-      {error && <ErrorBanner message={error} />}
-      {warning && <ErrorBanner message={warning} variant="warning" />}
+        {isRunning && (
+          <div
+            className="timebar"
+            role="progressbar"
+            aria-valuenow={secondsLeft}
+            aria-valuemin={0}
+            aria-valuemax={SESSION_SECONDS}
+          >
+            <span style={{ width: `${(secondsLeft / SESSION_SECONDS) * 100}%` }} />
+          </div>
+        )}
 
-      <Transcript sentences={sentences} interim={interim} />
+        {error && <ErrorBanner message={error} />}
+        {warning && <ErrorBanner message={warning} variant="warning" />}
+        {!isRunning && (
+          <StopNotice reason={stopReason} onRestart={() => start(apiKey, language, segmentation)} />
+        )}
 
-      <p className="note">Recording stops automatically after {SESSION_SECONDS} seconds.</p>
-    </>
+        <Transcript sentences={sentences} interim={interim} />
+
+        <p className="note">
+          Recording stops automatically after {SESSION_SECONDS} seconds. A rate-limited sentence is
+          skipped with a warning — the session keeps running.
+        </p>
+      </Step>
+    </div>
   );
 }
 
