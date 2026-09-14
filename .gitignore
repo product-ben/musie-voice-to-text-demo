@@ -1,0 +1,10 @@
+node_modules
+dist
+.DS_Store
+*.local
+
+# Safety net: no API keys ever land in this repo.
+# The demo takes the key at runtime, in the browser, and keeps it in sessionStorage only.
+.env
+.env.*
+!.env.example
