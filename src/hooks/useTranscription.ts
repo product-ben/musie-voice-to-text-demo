@@ -12,6 +12,10 @@ export function useTranscription() {
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  /** Loudness of the newest audio chunk (0–1), for the microphone meter. */
+  const [level, setLevel] = useState(0);
+  /** True while OpenAI's VAD is hearing speech. */
+  const [speaking, setSpeaking] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(SESSION_SECONDS);
 
   const connection = useRef<RealtimeConnection | null>(null);
@@ -28,6 +32,8 @@ export function useTranscription() {
       countdown.current = null;
     }
     setInterim("");
+    setLevel(0);
+    setSpeaking(false);
     setStatus("idle");
   }, []);
 
@@ -35,6 +41,8 @@ export function useTranscription() {
     async (apiKey: string, language: LanguageChoice) => {
       setError(null);
       setWarning(null);
+      setLevel(0);
+      setSpeaking(false);
       setSentences([]);
       setInterim("");
       setSecondsLeft(SESSION_SECONDS);
@@ -44,6 +52,9 @@ export function useTranscription() {
         switch (event.type) {
           case "ready":
             setStatus("recording");
+            break;
+          case "speech":
+            setSpeaking(event.active);
             break;
           case "interim":
             setInterim(event.text);
@@ -65,7 +76,10 @@ export function useTranscription() {
       });
 
       try {
-        const started = await startRecorder((chunk) => connection.current?.sendAudio(chunk));
+        const started = await startRecorder((chunk, chunkLevel) => {
+          connection.current?.sendAudio(chunk);
+          setLevel(chunkLevel);
+        });
         recorder.current = started;
       } catch (micError) {
         setError(
@@ -98,5 +112,16 @@ export function useTranscription() {
     };
   }, [stop]);
 
-  return { status, sentences, interim, error, warning, secondsLeft, start, stop };
+  return {
+    status,
+    sentences,
+    interim,
+    error,
+    warning,
+    level,
+    speaking,
+    secondsLeft,
+    start,
+    stop,
+  };
 }

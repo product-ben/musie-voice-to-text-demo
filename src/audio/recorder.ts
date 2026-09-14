@@ -17,10 +17,11 @@ function toBase64(buffer: ArrayBuffer): string {
 }
 
 /**
- * Opens the microphone and calls `onAudioChunk` with base64 PCM16 every ~40 ms.
+ * Opens the microphone and calls `onAudioChunk` every ~40 ms with base64 PCM16
+ * and the loudness of that chunk (0–1), which the UI uses to animate the meter.
  */
 export async function startRecorder(
-  onAudioChunk: (base64Audio: string) => void,
+  onAudioChunk: (base64Audio: string, level: number) => void,
 ): Promise<Recorder> {
   let stream: MediaStream;
   try {
@@ -48,8 +49,8 @@ export async function startRecorder(
 
   const source = context.createMediaStreamSource(stream);
   const recorder = new AudioWorkletNode(context, "pcm-recorder");
-  recorder.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
-    onAudioChunk(toBase64(event.data));
+  recorder.port.onmessage = (event: MessageEvent<{ pcm: ArrayBuffer; level: number }>) => {
+    onAudioChunk(toBase64(event.data.pcm), event.data.level);
   };
 
   // A worklet only runs while connected to the graph, but routing the mic to the

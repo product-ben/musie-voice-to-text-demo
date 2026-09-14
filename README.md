@@ -58,6 +58,26 @@ public or production — that needs a small server minting short-lived `ek_` tok
 
 ---
 
+## Privacy: what happens to your voice and text
+
+The app shows this as an expandable note on the page. Summarised, and checked against
+OpenAI's [data controls documentation](https://developers.openai.com/api/docs/guides/your-data)
+for `/v1/realtime` on 14 September 2026:
+
+| Question | Answer |
+| --- | --- |
+| Does this app store transcripts? | **No.** They live in browser memory and vanish on reload. No database, no server, no account. |
+| Does OpenAI store the audio? | **Yes, for up to 30 days**, in abuse-monitoring logs. This is their default for all API traffic. |
+| Is it stored permanently? | **No.** Application-state retention for `/v1/realtime` is *None*. |
+| Is it used for training? | **No** — not since 1 March 2023, unless the account opts in. |
+| Is it linked to a person? | **No user identity is sent.** No name, no ID, no safety identifier. The request is linked to the API key's *organisation*, so it is anonymous as to the speaker, not anonymous overall. |
+
+A common assumption is that the audio is processed and instantly discarded. **It is not** —
+the 30-day abuse-monitoring window applies. Only customers approved for Zero Data
+Retention or Modified Abuse Monitoring are excluded, and that requires applying to
+OpenAI. If you need that guarantee for real users, it has to be arranged with OpenAI
+directly; it is not something this app can switch on.
+
 ## Live demo
 
 The demo needs **HTTPS**: browsers refuse `getUserMedia` on insecure origins, so the

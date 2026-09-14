@@ -48,6 +48,16 @@ export function connectRealtime(
         onEvent({ type: "ready" });
         break;
 
+      // These drive the "hearing you" state: it is OpenAI's VAD talking,
+      // not a guess made in the browser.
+      case "input_audio_buffer.speech_started":
+        onEvent({ type: "speech", active: true });
+        break;
+
+      case "input_audio_buffer.speech_stopped":
+        onEvent({ type: "speech", active: false });
+        break;
+
       case "conversation.item.input_audio_transcription.delta": {
         const text = (partials.get(event.item_id) ?? "") + (event.delta ?? "");
         partials.set(event.item_id, text);

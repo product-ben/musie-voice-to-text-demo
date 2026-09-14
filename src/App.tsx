@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { LANGUAGE_OPTIONS, SESSION_SECONDS, type LanguageChoice } from "./config";
+import { SESSION_SECONDS, type LanguageChoice } from "./config";
 import { useTranscription } from "./hooks/useTranscription";
 import { Transcript } from "./components/Transcript";
 import { Toast } from "./components/Toast";
 import { ErrorBanner } from "./components/ErrorBanner";
+import { LanguageToggle } from "./components/LanguageToggle";
+import { MicIndicator } from "./components/MicIndicator";
+import { PrivacyNote } from "./components/PrivacyNote";
 
 // sessionStorage, not localStorage: the key dies when the tab closes.
 const KEY_STORAGE = "openai-api-key";
@@ -11,7 +14,7 @@ const KEY_STORAGE = "openai-api-key";
 export function App() {
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem(KEY_STORAGE) ?? "");
   const [language, setLanguage] = useState<LanguageChoice>("de");
-  const { status, sentences, interim, error, warning, secondsLeft, start, stop } =
+  const { status, sentences, interim, error, warning, level, speaking, secondsLeft, start, stop } =
     useTranscription();
 
   const isRunning = status !== "idle";
@@ -54,21 +57,12 @@ export function App() {
       </section>
 
       <section className="panel">
-        <label htmlFor="language">Language</label>
-        <div className="row">
-          <select
-            id="language"
-            value={language}
-            onChange={(event) => setLanguage(event.target.value as LanguageChoice)}
-            disabled={isRunning}
-          >
-            {LANGUAGE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <span className="field-label">Language</span>
+        <LanguageToggle value={language} onChange={setLanguage} disabled={isRunning} />
+      </section>
 
+      <section className="panel">
+        <div className="row">
           {isRunning ? (
             <button type="button" onClick={stop} className="primary">
               Stop
@@ -83,10 +77,8 @@ export function App() {
               Start
             </button>
           )}
-
-          <span className="countdown">
-            {status === "connecting" ? "Connecting…" : `${secondsLeft}s`}
-          </span>
+          <span className="countdown">{secondsLeft}s</span>
+          <MicIndicator status={status} level={level} speaking={speaking} />
         </div>
         {!apiKey && <p className="note">Enter an API key to enable recording.</p>}
       </section>
@@ -96,10 +88,9 @@ export function App() {
 
       <Transcript sentences={sentences} interim={interim} />
 
-      <p className="note">
-        Recording stops automatically after {SESSION_SECONDS} seconds.
-      </p>
+      <p className="note">Recording stops automatically after {SESSION_SECONDS} seconds.</p>
 
+      <PrivacyNote />
       <Toast />
     </main>
   );

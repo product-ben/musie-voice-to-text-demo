@@ -16,6 +16,7 @@ class PcmRecorder extends AudioWorkletProcessor {
     super();
     this.buffer = new Int16Array(BATCH_SAMPLES);
     this.offset = 0;
+    this.peak = 0;
   }
 
   process(inputs) {
@@ -27,11 +28,17 @@ class PcmRecorder extends AudioWorkletProcessor {
       const clamped = Math.max(-1, Math.min(1, channel[i]));
       this.buffer[this.offset++] = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
 
+      const magnitude = Math.abs(clamped);
+      if (magnitude > this.peak) this.peak = magnitude;
+
       if (this.offset === BATCH_SAMPLES) {
-        // Transfer the buffer instead of copying it, then start a fresh one.
-        this.port.postMessage(this.buffer.buffer, [this.buffer.buffer]);
+        // `level` drives the on-screen meter; the audio itself goes to OpenAI.
+        this.port.postMessage({ pcm: this.buffer.buffer, level: this.peak }, [
+          this.buffer.buffer,
+        ]);
         this.buffer = new Int16Array(BATCH_SAMPLES);
         this.offset = 0;
+        this.peak = 0;
       }
     }
     return true;
