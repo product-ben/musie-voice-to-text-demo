@@ -11,7 +11,8 @@ const KEY_STORAGE = "openai-api-key";
 export function App() {
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem(KEY_STORAGE) ?? "");
   const [language, setLanguage] = useState<LanguageChoice>("de");
-  const { status, sentences, interim, error, secondsLeft, start, stop } = useTranscription();
+  const { status, sentences, interim, error, warning, secondsLeft, start, stop } =
+    useTranscription();
 
   const isRunning = status !== "idle";
 
@@ -91,6 +92,7 @@ export function App() {
       </section>
 
       {error && <ErrorBanner message={error} />}
+      {warning && <ErrorBanner message={warning} variant="warning" />}
 
       <Transcript sentences={sentences} interim={interim} />
 

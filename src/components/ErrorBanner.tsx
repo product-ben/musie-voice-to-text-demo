@@ -1,6 +1,8 @@
-export function ErrorBanner({ message }: { message: string }) {
+type Props = { message: string; variant?: "error" | "warning" };
+
+export function ErrorBanner({ message, variant = "error" }: Props) {
   return (
-    <p className="error" role="alert">
+    <p className={variant} role="alert">
       {message}
     </p>
   );

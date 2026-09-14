@@ -11,6 +11,7 @@ export function useTranscription() {
   const [sentences, setSentences] = useState<string[]>([]);
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(SESSION_SECONDS);
 
   const connection = useRef<RealtimeConnection | null>(null);
@@ -33,6 +34,7 @@ export function useTranscription() {
   const start = useCallback(
     async (apiKey: string, language: LanguageChoice) => {
       setError(null);
+      setWarning(null);
       setSentences([]);
       setInterim("");
       setSecondsLeft(SESSION_SECONDS);
@@ -50,6 +52,10 @@ export function useTranscription() {
             setInterim("");
             setSentences((previous) => [...previous, event.text]);
             onSentenceFinal(event.text, event.language);
+            break;
+          // Non-fatal: one sentence was lost, recording continues.
+          case "warning":
+            setWarning(event.message);
             break;
           case "error":
             setError(event.message);
@@ -92,5 +98,5 @@ export function useTranscription() {
     };
   }, [stop]);
 
-  return { status, sentences, interim, error, secondsLeft, start, stop };
+  return { status, sentences, interim, error, warning, secondsLeft, start, stop };
 }

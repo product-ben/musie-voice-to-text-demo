@@ -66,11 +66,13 @@ export function connectRealtime(
         break;
       }
 
+      // One sentence failed — usually a rate limit. The socket stays healthy,
+      // so report it and carry on rather than ending the session.
       case "conversation.item.input_audio_transcription.failed":
         partials.delete(event.item_id);
         onEvent({
-          type: "error",
-          message: event.error?.message ?? "Transcription failed.",
+          type: "warning",
+          message: friendlyFailure(event.error),
         });
         break;
 
@@ -108,6 +110,23 @@ export function connectRealtime(
       socket.close();
     },
   };
+}
+
+/**
+ * Rate-limit messages are the one error users hit repeatedly, and OpenAI's
+ * wording buries the cause, so name it plainly.
+ */
+function friendlyFailure(error: { code?: string; message?: string } | undefined): string {
+  if (error?.code === "rate_limit_exceeded") {
+    return (
+      "Rate limit reached — this sentence was skipped. Each sentence is one request, " +
+      "so free-tier accounts (3 per minute) run out quickly. Adding a payment method raises the limit."
+    );
+  }
+  if (error?.code === "credit_balance_exhausted") {
+    return "No credits remaining on the OpenAI account. Add credits to transcribe.";
+  }
+  return error?.message ?? "That sentence could not be transcribed.";
 }
 
 function buildSessionUpdate(language: LanguageChoice) {

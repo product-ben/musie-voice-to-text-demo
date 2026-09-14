@@ -93,6 +93,15 @@ button:disabled {
   font-size: 0.85rem;
 }
 
+.warning {
+  background: #fff8e1;
+  border: 1px solid #f0d78c;
+  color: #6b4e00;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
 .transcript {
   margin-top: 1.5rem;
 }

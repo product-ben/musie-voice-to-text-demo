@@ -185,6 +185,25 @@ Language auto-detection works for transcription, but the model does not report
 Billing follows audio streamed, so stopping early costs proportionally less. For
 comparison, `gpt-live-transcribe` is $0.017/min — about 2.8× more.
 
+### Rate limits matter more than price here
+
+**Each finalised sentence is one API request.** A minute of normal speech with
+pauses can easily be ten or more requests.
+
+| Tier | Requests/minute | Usable? |
+| --- | --- | --- |
+| Free (no payment method) | **3** | No — roughly one sentence per 20 seconds |
+| Tier 1 (payment method added) | 500 | Yes |
+
+If you see `Rate limit reached for gpt-4o-transcribe … Limit 3, Used 3`, add a payment
+method at [platform.openai.com/account/billing](https://platform.openai.com/account/billing).
+Credits alone are not enough — the free tier's 3 RPM cap applies regardless of balance.
+
+The app treats a rate-limited sentence as **non-fatal**: it shows an amber warning and
+keeps recording, so later sentences still come through once the window resets. Raising
+`SILENCE_DURATION_MS` reduces the request rate by producing fewer, longer sentences,
+but it cannot make the free tier genuinely usable.
+
 **You need credits on the account.** With an empty balance every request fails with
 `credit_balance_exhausted`, and the app surfaces that message directly. Top up at
 [platform.openai.com billing](https://platform.openai.com/settings/organization/billing).
@@ -199,7 +218,8 @@ comparison, `gpt-live-transcribe` is $0.017/min — about 2.8× more.
 | No microphone | "No microphone was found on this device." |
 | Invalid / expired key | OpenAI's own message, e.g. "Incorrect API key provided: sk-proj-****…" |
 | Handshake refused outright | "OpenAI rejected the connection. The API key is probably invalid, expired, or out of credits." |
-| No credits | The API's own `credit_balance_exhausted` message |
+| No credits | "No credits remaining on the OpenAI account…" |
+| Rate limit hit | Amber warning; **recording continues**, only that sentence is lost |
 | Socket drops mid-session | "The connection to OpenAI closed unexpectedly." |
 
 The socket closes on **Stop**, on the **60-second timeout**, and on **page unload**.
