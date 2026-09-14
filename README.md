@@ -127,6 +127,36 @@ to know.
 `language` is the language you selected (`"de"` or `"en"`), or `"auto"` when
 auto-detect is on. See the caveat under *Auto-detect* below.
 
+### The segmentation lab (`#/lab`)
+
+A second page, same demo, with control over how the transcript is cut into the
+sentences passed to `onSentenceFinal`. There are two independent places to split:
+
+**Audio** (before transcription) — decides how many API requests you make, which
+matters for rate limits. Billing is per minute of audio either way, so finer audio
+chunking costs no extra money, only extra requests.
+
+**Text** (after transcription) — free.
+
+| Mode | Audio split | Text split |
+| --- | --- | --- |
+| `silence` | Server VAD: a pause of `SILENCE_DURATION_MS` | none |
+| `semantic` | Semantic VAD, `eagerness: "low"` | none |
+| `punctuation` | Semantic VAD, `eagerness: "low"` | on `.` `?` `!` |
+
+`semantic` uses a classifier that judges whether you have finished a *thought* rather
+than merely stopped making noise. Hesitant speech — *"mir geht es… ja, eigentlich ganz
+okay"* — survives in one piece instead of being chopped at the pause, which matters when
+something downstream has to decide whether a feeling was expressed.
+
+`punctuation` adds a free text split on top, so one long turn can still yield several
+sentences. The splitter guards against two common false splits: known abbreviations
+(`z.B.`, `Dr.`, `usw.`) and fragments that continue in lower case — see
+[src/segmentation.ts](src/segmentation.ts). It is a heuristic, not a parser.
+
+Routing is hash-based (`#/lab`) because GitHub Pages serves static files: a real
+`/lab` path would 404 on reload.
+
 ### Tuning when a sentence ends
 
 The single dial is in `src/config.ts`:

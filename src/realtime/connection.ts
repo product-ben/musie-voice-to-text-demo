@@ -3,9 +3,11 @@ import {
   PREFIX_PADDING_MS,
   REALTIME_URL,
   SAMPLE_RATE,
+  SEMANTIC_EAGERNESS,
   SILENCE_DURATION_MS,
   VAD_THRESHOLD,
   type LanguageChoice,
+  type SegmentationMode,
 } from "../config";
 import type { TranscriptEvent } from "./types";
 
@@ -17,6 +19,7 @@ export type RealtimeConnection = {
 export function connectRealtime(
   apiKey: string,
   language: LanguageChoice,
+  segmentation: SegmentationMode,
   onEvent: (event: TranscriptEvent) => void,
 ): RealtimeConnection {
   // A browser WebSocket cannot set an Authorization header, so the key travels
@@ -41,7 +44,7 @@ export function connectRealtime(
 
     switch (event.type) {
       case "session.created":
-        socket.send(JSON.stringify(buildSessionUpdate(language)));
+        socket.send(JSON.stringify(buildSessionUpdate(language, segmentation)));
         break;
 
       case "session.updated":
@@ -86,9 +89,18 @@ export function connectRealtime(
         });
         break;
 
-      case "error":
-        onEvent({ type: "error", message: event.error?.message ?? "OpenAI reported an error." });
+      case "error": {
+        const param: string = event.error?.param ?? "";
+        // Name the cause when a turn-detection mode is rejected, so the
+        // experiment page reports "this mode is unsupported" rather than
+        // a generic failure.
+        const message = param.includes("turn_detection")
+          ? `The "${segmentation}" mode was rejected by OpenAI: ${event.error?.message} ` +
+            `Switch to Silence to keep working.`
+          : (event.error?.message ?? "OpenAI reported an error.");
+        onEvent({ type: "error", message });
         break;
+      }
     }
   });
 
@@ -139,7 +151,7 @@ function friendlyFailure(error: { code?: string; message?: string } | undefined)
   return error?.message ?? "That sentence could not be transcribed.";
 }
 
-function buildSessionUpdate(language: LanguageChoice) {
+function buildSessionUpdate(language: LanguageChoice, segmentation: SegmentationMode) {
   return {
     type: "session.update",
     session: {
@@ -152,15 +164,26 @@ function buildSessionUpdate(language: LanguageChoice) {
             // Omitted entirely for auto-detect; sending null is rejected.
             ...(language === "auto" ? {} : { language }),
           },
-          // Server-side VAD decides where each sentence ends.
-          turn_detection: {
-            type: "server_vad",
-            threshold: VAD_THRESHOLD,
-            prefix_padding_ms: PREFIX_PADDING_MS,
-            silence_duration_ms: SILENCE_DURATION_MS,
-          },
+          turn_detection: buildTurnDetection(segmentation),
         },
       },
     },
   };
+}
+
+/**
+ * "silence" chunks on a pause of fixed length. "semantic" (and the
+ * punctuation mode built on it) lets a classifier judge when the speaker has
+ * actually finished a thought, so hesitation does not end a sentence.
+ */
+function buildTurnDetection(segmentation: SegmentationMode) {
+  if (segmentation === "silence") {
+    return {
+      type: "server_vad",
+      threshold: VAD_THRESHOLD,
+      prefix_padding_ms: PREFIX_PADDING_MS,
+      silence_duration_ms: SILENCE_DURATION_MS,
+    };
+  }
+  return { type: "semantic_vad", eagerness: SEMANTIC_EAGERNESS };
 }

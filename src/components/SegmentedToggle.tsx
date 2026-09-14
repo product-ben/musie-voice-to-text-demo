@@ -1,15 +1,23 @@
-import { LANGUAGE_OPTIONS, type LanguageChoice } from "../config";
+type Option<T extends string> = { value: T; label: string };
 
-type Props = {
-  value: LanguageChoice;
-  onChange: (value: LanguageChoice) => void;
+type Props<T extends string> = {
+  label: string;
+  options: Option<T>[];
+  value: T;
+  onChange: (value: T) => void;
   disabled: boolean;
 };
 
-export function LanguageToggle({ value, onChange, disabled }: Props) {
+export function SegmentedToggle<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  disabled,
+}: Props<T>) {
   return (
-    <div className="toggle" role="radiogroup" aria-label="Language">
-      {LANGUAGE_OPTIONS.map((option) => (
+    <div className="toggle" role="radiogroup" aria-label={label}>
+      {options.map((option) => (
         <button
           key={option.value}
           type="button"

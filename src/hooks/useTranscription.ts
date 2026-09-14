@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SESSION_SECONDS, type LanguageChoice } from "../config";
+import { SESSION_SECONDS, type LanguageChoice, type SegmentationMode } from "../config";
+import { segment } from "../segmentation";
 import { MicrophoneError, startRecorder, type Recorder } from "../audio/recorder";
 import { connectRealtime, type RealtimeConnection } from "../realtime/connection";
 import { onSentenceFinal } from "../onSentenceFinal";
@@ -38,7 +39,7 @@ export function useTranscription() {
   }, []);
 
   const start = useCallback(
-    async (apiKey: string, language: LanguageChoice) => {
+    async (apiKey: string, language: LanguageChoice, segmentation: SegmentationMode = "silence") => {
       setError(null);
       setWarning(null);
       setLevel(0);
@@ -48,7 +49,7 @@ export function useTranscription() {
       setSecondsLeft(SESSION_SECONDS);
       setStatus("connecting");
 
-      connection.current = connectRealtime(apiKey, language, (event) => {
+      connection.current = connectRealtime(apiKey, language, segmentation, (event) => {
         switch (event.type) {
           case "ready":
             setStatus("recording");
@@ -59,11 +60,14 @@ export function useTranscription() {
           case "interim":
             setInterim(event.text);
             break;
-          case "final":
+          case "final": {
             setInterim("");
-            setSentences((previous) => [...previous, event.text]);
-            onSentenceFinal(event.text, event.language);
+            // One turn can yield several sentences in punctuation mode.
+            const parts = segment(event.text, segmentation);
+            setSentences((previous) => [...previous, ...parts]);
+            parts.forEach((part) => onSentenceFinal(part, event.language));
             break;
+          }
           // Non-fatal: one sentence was lost, recording continues.
           case "warning":
             setWarning(event.message);
