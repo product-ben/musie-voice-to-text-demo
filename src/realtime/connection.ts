@@ -79,15 +79,12 @@ export function connectRealtime(
         break;
       }
 
-      // One sentence failed — usually a rate limit. The socket stays healthy,
-      // so report it and carry on rather than ending the session.
-      case "conversation.item.input_audio_transcription.failed":
+      case "conversation.item.input_audio_transcription.failed": {
         partials.delete(event.item_id);
-        onEvent({
-          type: "warning",
-          message: friendlyFailure(event.error),
-        });
+        const { fatal, message } = classifyError(event.error, segmentation);
+        onEvent({ type: fatal ? "error" : "warning", message });
         break;
+      }
 
       case "error": {
         const { fatal, message } = classifyError(event.error, segmentation);
@@ -128,14 +125,13 @@ export function connectRealtime(
 }
 
 /**
- * Rate-limit messages are the one error users hit repeatedly, and OpenAI's
- * wording buries the cause, so name it plainly.
- */
-/**
- * Decides whether an error should end the session. Rate limits must not:
- * every sentence is a separate request, so on a low tier the third sentence
- * of a normal session can be rejected. Killing the session there loses the
- * rest of the recording over something that clears in seconds.
+ * Decides whether an error should end the session.
+ *
+ * Rate limits must not: every sentence is a separate request, so on a low tier
+ * the third sentence of an ordinary session can be rejected, and that clears in
+ * seconds. Everything that cannot clear on its own — no credits, a bad key, a
+ * rejected session config — must stop the session loudly. A warning that leaves
+ * recording running just looks like transcription silently producing nothing.
  */
 function classifyError(
   error: { code?: string; message?: string; param?: string } | undefined,
@@ -152,23 +148,27 @@ function classifyError(
         `Switch to Silence to keep working.`,
     };
   }
-  if (code === "rate_limit_exceeded") {
-    return { fatal: false, message: friendlyFailure(error) };
-  }
-  return { fatal: true, message: error?.message ?? "OpenAI reported an error." };
-}
 
-function friendlyFailure(error: { code?: string; message?: string } | undefined): string {
-  if (error?.code === "rate_limit_exceeded") {
-    return (
-      "Rate limit reached — this sentence was skipped. Each sentence is one request, " +
-      "so free-tier accounts (3 per minute) run out quickly. Adding a payment method raises the limit."
-    );
+  // Clears on its own within the minute — skip the sentence, keep recording.
+  if (code === "rate_limit_exceeded") {
+    return {
+      fatal: false,
+      message:
+        "Rate limit reached — this sentence was skipped. Each sentence is one request, so " +
+        "free-tier accounts (3 per minute) run out quickly. Adding a payment method raises the limit.",
+    };
   }
-  if (error?.code === "credit_balance_exhausted") {
-    return "No credits remaining on the OpenAI account. Add credits to transcribe.";
+
+  if (code === "credit_balance_exhausted" || code === "insufficient_quota") {
+    return {
+      fatal: true,
+      message:
+        "No credits remaining on the OpenAI account, so nothing can be transcribed. " +
+        "Add credits at platform.openai.com/settings/organization/billing, then start again.",
+    };
   }
-  return error?.message ?? "That sentence could not be transcribed.";
+
+  return { fatal: true, message: error?.message ?? "OpenAI reported an error." };
 }
 
 function buildSessionUpdate(language: LanguageChoice, segmentation: SegmentationMode) {
