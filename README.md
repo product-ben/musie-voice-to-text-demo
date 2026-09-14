@@ -197,7 +197,8 @@ comparison, `gpt-live-transcribe` is $0.017/min — about 2.8× more.
 | --- | --- |
 | Microphone denied | "Microphone access was denied…" |
 | No microphone | "No microphone was found on this device." |
-| Invalid / expired key | "OpenAI rejected the connection. The API key is probably invalid, expired, or out of credits." |
+| Invalid / expired key | OpenAI's own message, e.g. "Incorrect API key provided: sk-proj-****…" |
+| Handshake refused outright | "OpenAI rejected the connection. The API key is probably invalid, expired, or out of credits." |
 | No credits | The API's own `credit_balance_exhausted` message |
 | Socket drops mid-session | "The connection to OpenAI closed unexpectedly." |
 
