@@ -1,0 +1,215 @@
+# Musie — Live Speech to Text (proof of concept)
+
+Press **Start**, speak for up to a minute in German or English, and watch the text
+appear live. Each time you pause, the current sentence is finalised and handed to a
+single extension point — `onSentenceFinal()` — where later logic will be plugged in.
+
+Static site, no backend. It runs on GitHub Pages and talks to the OpenAI Realtime
+API directly from the browser.
+
+---
+
+## Quick start
+
+```bash
+npm install
+npm run dev
+```
+
+Open the printed URL, paste an OpenAI API key, pick a language, press Start.
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Local dev server with hot reload |
+| `npm run build` | Type-check and build into `dist/` |
+| `npm run preview` | Serve the built bundle locally |
+| `npm run typecheck` | TypeScript only |
+| `npm run lint` | ESLint |
+
+---
+
+## Security: read this before using a key
+
+**This demo sends your API key from the browser.** That is unavoidable without a
+server, and it is the trade-off the project deliberately accepts.
+
+A browser `WebSocket` cannot set an `Authorization` header, so the OpenAI Realtime
+API accepts the key through a WebSocket *subprotocol* instead — literally named
+`openai-insecure-api-key`. The warning is in the name: anyone who can open the page
+and read its network traffic can read the key.
+
+What this project does about it:
+
+- The key is typed in at runtime. It is **never** in the repository, the build, or an
+  environment variable.
+- It is held in `sessionStorage`, so it disappears when the tab closes. Never
+  `localStorage`.
+- There is a **Forget key** button.
+- `.gitignore` blocks `.env*` as a safety net, though the app uses no env vars.
+
+What **you** should do about it:
+
+1. Use a dedicated key with a **low spending limit**.
+2. **Revoke it** when you are done testing.
+3. **Never** share a demo URL with a key pre-filled, and never commit one.
+
+This is acceptable for a personal proof of concept. It is not acceptable for anything
+public or production — that needs a small server minting short-lived `ek_` tokens.
+
+---
+
+## Live demo
+
+The demo needs **HTTPS**: browsers refuse `getUserMedia` on insecure origins, so the
+microphone simply will not open over plain `http://`. GitHub Pages provides HTTPS
+automatically. `localhost` is also treated as secure, so local development works.
+
+Every push to `main` rebuilds and redeploys via `.github/workflows/deploy.yml`.
+
+---
+
+## How it works
+
+```
+microphone → AudioWorklet (PCM16 @ 24 kHz) → base64 → WebSocket → OpenAI
+                                                                    ↓
+   finalised sentence ← "completed" event ← server VAD detects your pause
+                ↓
+        onSentenceFinal(sentence, language)
+```
+
+| File | Role |
+| --- | --- |
+| `src/config.ts` | Every tunable constant |
+| `src/onSentenceFinal.ts` | **The extension point** |
+| `src/realtime/connection.ts` | WebSocket, auth, session config, event mapping |
+| `src/audio/recorder.ts` | Microphone → PCM16 |
+| `public/pcm-worklet.js` | Float → 16-bit conversion, off the main thread |
+| `src/hooks/useTranscription.ts` | Glue, 60-second timer, error handling |
+
+### The sentence-final hook
+
+Every finalised sentence calls one function, in `src/onSentenceFinal.ts`:
+
+```ts
+export function onSentenceFinal(sentence: string, language: string): void {
+  console.log("[onSentenceFinal]", { sentence, language });
+  showToast("Sentence finished");
+
+  // ↓ Plug new per-sentence logic in below.
+}
+```
+
+Today it logs and raises a "Sentence finished" toast. To add a check — "did this
+sentence mention a feeling?" — edit **only this file**. Nothing else in the app needs
+to know.
+
+`language` is the language you selected (`"de"` or `"en"`), or `"auto"` when
+auto-detect is on. See the caveat under *Auto-detect* below.
+
+### Tuning when a sentence ends
+
+The single dial is in `src/config.ts`:
+
+```ts
+export const SILENCE_DURATION_MS = 500;
+```
+
+How long you must pause before the sentence is considered finished. Lower values
+commit sooner but chop mid-thought; higher values give longer, more complete
+sentences at the cost of feeling sluggish. `VAD_THRESHOLD` (raise it in a noisy room)
+and `PREFIX_PADDING_MS` sit alongside it.
+
+The pause detection happens on OpenAI's side — the browser just streams audio.
+
+---
+
+## API details, verified 14 September 2026
+
+Checked against `developers.openai.com` (the old `platform.openai.com/docs/*` URLs
+now redirect there) and confirmed by probing the live API, because the documentation
+turned out to be wrong in one place.
+
+- **Endpoint:** `wss://api.openai.com/v1/realtime?intent=transcription`
+  Not documented; found by probing. `/v1/realtime/transcription_sessions` returns 404
+  despite appearing in the model documentation's endpoint table.
+- **Auth:** subprotocols `["realtime", "openai-insecure-api-key.<KEY>"]`. The beta
+  `openai-beta.realtime-v1` subprotocol is gone in the GA API.
+- **Model:** `gpt-4o-transcribe`. Its model page claims realtime transcription is
+  "Not supported" — **this is incorrect**; the live API accepts it with server VAD.
+- **Session payload** — the GA shape, not the beta `transcription_session.update`:
+
+```json
+{ "type": "session.update",
+  "session": { "type": "transcription",
+    "audio": { "input": {
+      "format": { "type": "audio/pcm", "rate": 24000 },
+      "transcription": { "model": "gpt-4o-transcribe", "language": "de" },
+      "turn_detection": { "type": "server_vad", "threshold": 0.5,
+                          "prefix_padding_ms": 300, "silence_duration_ms": 500 }
+    }}}}
+```
+
+- **Events:** `conversation.item.input_audio_transcription.delta` → interim text;
+  `.completed` → finalised sentence; `.failed` → error.
+
+### Why not `gpt-live-transcribe`?
+
+It is the newer streaming model, but it **rejects turn detection outright**:
+
+> `Turn detection is not supported for this transcription model.`
+
+Using it would mean detecting pauses in the browser and committing turns manually. It
+is also nearly three times the price. `gpt-4o-transcribe` supports server VAD, so
+sentence-splitting is handled for us. Swap `MODEL` in `src/config.ts` if that changes.
+
+### Auto-detect
+
+Language auto-detection works for transcription, but the model does not report
+*which* language it detected. `onSentenceFinal` therefore receives the literal string
+`"auto"` rather than a detected code. Getting a real language code back would mean
+`gpt-transcribe`, which only produces text after a turn ends — no live interim text.
+
+---
+
+## Cost
+
+`gpt-4o-transcribe` is **$0.006 per minute** of audio (published price, 14 Sep 2026).
+
+| Usage | Cost |
+| --- | --- |
+| One 60-second session | **~$0.006** (0.6 ¢) |
+| 100 test sessions | ~$0.60 |
+| An hour of continuous speech | ~$0.36 |
+
+Billing follows audio streamed, so stopping early costs proportionally less. For
+comparison, `gpt-live-transcribe` is $0.017/min — about 2.8× more.
+
+**You need credits on the account.** With an empty balance every request fails with
+`credit_balance_exhausted`, and the app surfaces that message directly. Top up at
+[platform.openai.com billing](https://platform.openai.com/settings/organization/billing).
+
+---
+
+## Errors the app handles
+
+| Situation | What you see |
+| --- | --- |
+| Microphone denied | "Microphone access was denied…" |
+| No microphone | "No microphone was found on this device." |
+| Invalid / expired key | "OpenAI rejected the connection. The API key is probably invalid, expired, or out of credits." |
+| No credits | The API's own `credit_balance_exhausted` message |
+| Socket drops mid-session | "The connection to OpenAI closed unexpectedly." |
+
+The socket closes on **Stop**, on the **60-second timeout**, and on **page unload**.
+
+---
+
+## Scope
+
+Built: live interim text, per-sentence finalisation, the `onSentenceFinal` hook,
+60-second countdown with manual stop, language selector.
+
+Deliberately not built: feeling/emotion detection (the hook is the placeholder for
+it), any backend or token endpoint, transcript persistence, accounts, other STT
+providers.
