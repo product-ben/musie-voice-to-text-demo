@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useDragList } from "../hooks/useDragList";
 import { SentenceCard } from "./SentenceCard";
+import { SentenceCardV2 } from "./SentenceCardV2";
+import type { CombineOrder } from "../hooks/useSentences";
 import type { Sentence } from "../transcript/types";
 
 type Props = {
@@ -9,19 +11,34 @@ type Props = {
   /** Editing is only offered once recording has stopped. */
   editable: boolean;
   onEdit: (id: string, text: string) => void;
-  onCombine: (sourceId: string, targetId: string) => void;
+  onCombine: (sourceId: string, targetId: string, order?: CombineOrder) => void;
+  /** "initial" keeps the original card; "improved" is the reworked one. */
+  variant?: "initial" | "improved";
   onMove: (sourceId: string, targetId: string, position: "before" | "after") => void;
   onDelete: (id: string) => void;
 };
 
 export function SentenceList({
-  sentences, interim, editable, onEdit, onCombine, onMove, onDelete,
+  sentences, interim, editable, onEdit, onCombine, onMove, onDelete, variant = "initial",
 }: Props) {
+  const improved = variant === "improved";
+
+  /**
+   * Dragging downward prepends the dragged text, dragging upward appends it,
+   * so a merge always reads in the order the statements appear on screen.
+   * Direction comes from list position rather than gesture, which is exact.
+   */
+  const combineInOrder = (sourceId: string, targetId: string) => {
+    if (!improved) return onCombine(sourceId, targetId);
+    const from = sentences.findIndex((s) => s.id === sourceId);
+    const to = sentences.findIndex((s) => s.id === targetId);
+    onCombine(sourceId, targetId, from < to ? "sourceFirst" : "targetFirst");
+  };
   const [engagedId, setEngagedId] = useState<string | null>(null);
   const [liftedId, setLiftedId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
 
-  const drag = useDragList({ onCombine, onMove });
+  const drag = useDragList({ onCombine: combineInOrder, onMove });
 
   if (sentences.length === 0 && !interim) {
     return <p className="placeholder">Finished statements will appear here, one block each.</p>;
@@ -66,10 +83,17 @@ export function SentenceList({
   const dragged = sentences.find((s) => s.id === drag.draggingId);
 
   return (
-    <div className={drag.draggingId ? "transcript is-dragging-list" : "transcript"}>
+    <div
+      className={[
+        "transcript",
+        improved && "is-improved",
+        drag.draggingId && "is-dragging-list",
+      ].filter(Boolean).join(" ")}
+    >
       {editable && sentences.length > 1 && (
         <p className="edit-hint">
           Drag a statement onto another to combine them, or between two to reorder.
+          {improved && " On touch, hold briefly to drag from anywhere on a card."}
         </p>
       )}
 
@@ -78,25 +102,42 @@ export function SentenceList({
         return (
           <div key={sentence.id} className="card-slot">
             {target === "before" && <div className="drop-line" aria-hidden="true" />}
-            <SentenceCard
-              sentence={sentence}
-              position={`${index + 1}`}
-              editable={editable}
-              engaged={engagedId === sentence.id}
-              dragging={drag.draggingId === sentence.id}
-              dropMode={target}
-              liftedByKeyboard={liftedId === sentence.id}
-              onEngage={() => {
-                // A click that ended a drag should not also select the card.
-                if (drag.consumeDrag()) return;
-                setEngagedId((current) => (current === sentence.id ? null : sentence.id));
-              }}
-              onSave={(text) => onEdit(sentence.id, text)}
-              onDelete={() => onDelete(sentence.id)}
-              handleProps={drag.handleProps(sentence.id)}
-              onHandleKeyDown={(event) => handleKeyDown(event, sentence, index)}
-              registerRef={(element) => drag.registerItem(sentence.id, element)}
-            />
+            {improved ? (
+              <SentenceCardV2
+                sentence={sentence}
+                position={`${index + 1}`}
+                editable={editable}
+                dragging={drag.draggingId === sentence.id}
+                dropMode={target}
+                liftedByKeyboard={liftedId === sentence.id}
+                onSave={(text) => onEdit(sentence.id, text)}
+                onDelete={() => onDelete(sentence.id)}
+                handleProps={drag.handleProps(sentence.id)}
+                cardProps={drag.cardProps(sentence.id)}
+                onHandleKeyDown={(event) => handleKeyDown(event, sentence, index)}
+                registerRef={(element) => drag.registerItem(sentence.id, element)}
+              />
+            ) : (
+              <SentenceCard
+                sentence={sentence}
+                position={`${index + 1}`}
+                editable={editable}
+                engaged={engagedId === sentence.id}
+                dragging={drag.draggingId === sentence.id}
+                dropMode={target}
+                liftedByKeyboard={liftedId === sentence.id}
+                onEngage={() => {
+                  // A click that ended a drag should not also select the card.
+                  if (drag.consumeDrag()) return;
+                  setEngagedId((current) => (current === sentence.id ? null : sentence.id));
+                }}
+                onSave={(text) => onEdit(sentence.id, text)}
+                onDelete={() => onDelete(sentence.id)}
+                handleProps={drag.handleProps(sentence.id)}
+                onHandleKeyDown={(event) => handleKeyDown(event, sentence, index)}
+                registerRef={(element) => drag.registerItem(sentence.id, element)}
+              />
+            )}
             {target === "after" && <div className="drop-line" aria-hidden="true" />}
           </div>
         );

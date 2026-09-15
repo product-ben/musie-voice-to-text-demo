@@ -603,7 +603,7 @@ button:disabled {
 
 .drop-line {
   height: 3px;
-  background: #1a1a1a;
+  background: #1a7f37;
   border-radius: 2px;
   margin: 0.25rem 0;
 }
@@ -692,6 +692,251 @@ button:disabled {
   .sentence-card,
   .card-actions,
   .drag-handle {
+    transition: none;
+  }
+}
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  background: #ededed;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.tab {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  color: #666;
+  min-height: 40px;
+}
+
+.tab.is-active {
+  background: #fff;
+  color: #1a1a1a;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+}
+
+.section-rule {
+  border: 0;
+  border-top: 1px solid #e4e4e4;
+  margin: 1.1rem 0;
+}
+
+.stop-hint {
+  font-size: 0.78rem;
+  color: #777;
+}
+
+/* ── Reworked statement card (improved tab) ────────────────── */
+.card2 {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  background: #fff;
+  border: 1px solid #e4e4e4;
+  border-left: 3px solid #1a1a1a;
+  border-radius: 4px;
+  margin: 0 0 0.5rem;
+  padding: 0.7rem 0.6rem 0.7rem 0.9rem;
+  transition: box-shadow 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+
+.card2-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Controls stack on the right: drag, edit, delete. Always visible. */
+.card2-tools {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-self: flex-start;
+}
+
+.tool {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  color: #b0b0b0;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.tool svg {
+  fill: currentColor;
+}
+
+.tool:hover,
+.tool:focus-visible {
+  color: #1a1a1a;
+  background: #f2f2f2;
+}
+
+.tool-danger:hover,
+.tool-danger:focus-visible {
+  color: #8a1c14;
+  background: #fdecea;
+}
+
+.card2 .drag-handle {
+  cursor: grab;
+  /* Small target, so removing its touch gestures costs no page scrolling. */
+  touch-action: none;
+}
+
+.card2 .drag-handle:active {
+  cursor: grabbing;
+}
+
+.card2.is-dragging {
+  opacity: 0.35;
+  border-style: dashed;
+}
+
+.card2.is-merge-target {
+  border-color: #1a7f37;
+  border-left-color: #1a7f37;
+  box-shadow: 0 0 0 2px rgb(26 127 55 / 0.25);
+}
+
+.card2.is-lifted {
+  box-shadow: 0 0 0 2px #1a1a1a;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.edit-actions button {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
+  min-height: 40px;
+}
+
+/*
+ * The whole card is a drag surface, so selecting its text on a touch screen
+ * fights the gesture. Pointer-based devices keep selection for copying.
+ */
+@media (pointer: coarse) {
+  .transcript.is-improved .card2 .sentence-text {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .transcript.is-improved .card2 .sentence-text {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+/* ── Data layer ────────────────────────────────────────────── */
+.datalayer {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #e4e4e4;
+}
+
+.datalayer-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #444;
+  min-height: 44px;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.switch-track {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: #ccc;
+  padding: 2px;
+  transition: background-color 160ms ease;
+  flex: none;
+}
+
+.switch-knob {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 160ms ease;
+}
+
+.switch input:checked + .switch-track {
+  background: #1a7f37;
+}
+
+.switch input:checked + .switch-track .switch-knob {
+  transform: translateX(16px);
+}
+
+.switch input:focus-visible + .switch-track {
+  outline: 2px solid #1a1a1a;
+  outline-offset: 2px;
+}
+
+.datalayer-count {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.json {
+  margin: 0.6rem 0 0;
+  padding: 0.75rem;
+  background: #1c1c1c;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: #d4d4d4;
+  overflow-x: auto;
+  max-height: 20rem;
+  overflow-y: auto;
+  white-space: pre;
+}
+
+.json-key { color: #9cdcfe; }
+.json-string { color: #ce9178; }
+.json-punct { color: #808080; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card2,
+  .tool,
+  .switch-track,
+  .switch-knob {
     transition: none;
   }
 }

@@ -7,6 +7,13 @@ const UNDO_SECONDS = 6;
 
 type Undoable = { label: string; snapshot: Sentence[] } | null;
 
+/**
+ * Which text leads once two statements merge. "targetFirst" appends the
+ * dragged statement; "sourceFirst" prepends it, which is what keeps the
+ * merged text in reading order when dragging downward.
+ */
+export type CombineOrder = "targetFirst" | "sourceFirst";
+
 const newId = () =>
   typeof crypto?.randomUUID === "function"
     ? crypto.randomUUID()
@@ -50,6 +57,26 @@ export function useSentences() {
     ]);
   }, []);
 
+  /**
+   * Marks where the current recording session's statements begin, so a second
+   * session can insert its block above everything older while the statements
+   * within it stay in the order they were spoken.
+   */
+  const sessionStart = useRef(0);
+
+  const beginSession = useCallback(() => {
+    sessionStart.current = 0;
+  }, []);
+
+  const appendToSession = useCallback((texts: string[], language: string) => {
+    setSentences((previous) => {
+      const fresh = texts.map((text) => ({ id: newId(), text, language }));
+      const at = sessionStart.current;
+      sessionStart.current = at + fresh.length;
+      return [...previous.slice(0, at), ...fresh, ...previous.slice(at)];
+    });
+  }, []);
+
   const reset = useCallback(() => {
     setSentences([]);
     dismissUndo();
@@ -70,7 +97,7 @@ export function useSentences() {
 
   /** Appends the dragged statement's text to the one it was dropped on. */
   const combine = useCallback(
-    (sourceId: string, targetId: string) => {
+    (sourceId: string, targetId: string, order: CombineOrder = "targetFirst") => {
       if (sourceId === targetId) return;
       setSentences((previous) => {
         const source = previous.find((s) => s.id === sourceId);
@@ -78,7 +105,9 @@ export function useSentences() {
         if (!source || !target) return previous;
 
         offerUndo("Statements combined", previous);
-        const merged = `${target.text} ${source.text}`.replace(/\s+/g, " ").trim();
+        const parts =
+          order === "sourceFirst" ? [source.text, target.text] : [target.text, source.text];
+        const merged = parts.join(" ").replace(/\s+/g, " ").trim();
         onSentenceFinal(merged, target.language);
 
         return previous
@@ -123,6 +152,8 @@ export function useSentences() {
     sentences,
     undoLabel: undoable?.label ?? null,
     append,
+    appendToSession,
+    beginSession,
     reset,
     edit,
     combine,

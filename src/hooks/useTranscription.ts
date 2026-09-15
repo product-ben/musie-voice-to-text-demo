@@ -60,13 +60,15 @@ export function useTranscription() {
       model: TranscriptionModel,
       language: LanguageChoice,
       segmentation: SegmentationMode = "silence",
+      options?: { keepExisting?: boolean; insertAtTop?: boolean },
     ) => {
       setError(null);
       setWarning(null);
       setStopReason(null);
       setLevel(0);
       setSpeaking(false);
-      list.reset();
+      if (!options?.keepExisting) list.reset();
+      list.beginSession();
       setInterim("");
       setSecondsLeft(SESSION_SECONDS);
       deadline.current = Date.now() + SESSION_SECONDS * 1000;
@@ -89,7 +91,8 @@ export function useTranscription() {
             setInterim("");
             // One turn can yield several sentences in punctuation mode.
             const parts = segment(event.text, segmentation);
-            list.append(parts, event.language);
+            if (options?.insertAtTop) list.appendToSession(parts, event.language);
+            else list.append(parts, event.language);
             parts.forEach((part) => onSentenceFinal(part, event.language));
             break;
           }

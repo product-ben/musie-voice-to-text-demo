@@ -1,8 +1,14 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DropTarget } from "../transcript/types";
 
 /** Movement before a press counts as a drag rather than a tap. */
 const DRAG_THRESHOLD_PX = 8;
+
+/** Hold this long to drag from anywhere on a card, on touch. */
+const LONG_PRESS_MS = 350;
+
+/** Moving further than this before the hold completes means you meant to scroll. */
+const SCROLL_INTENT_PX = 10;
 
 /** How close to the viewport edge before the page scrolls itself. */
 const EDGE_PX = 80;
@@ -16,12 +22,16 @@ type Options = {
 };
 
 /**
- * Drag-and-drop built on Pointer Events rather than HTML5 drag-and-drop,
- * which does not fire on touch devices at all.
+ * Drag-and-drop on Pointer Events, because HTML5 drag-and-drop does not fire
+ * on touch devices at all.
  *
- * The dragged box stays in place at reduced opacity and a copy follows the
- * finger, so the list never reflows mid-drag and the measured positions stay
- * valid for the whole gesture.
+ * Two ways in. The drag handle starts immediately, since `touch-action: none`
+ * on a small target costs no scrolling. Pressing anywhere else on a card needs
+ * a short hold first — otherwise a card would swallow every attempt to scroll
+ * the page, which on a phone is most of what people do.
+ *
+ * The dragged card stays in place while a copy follows the finger, so the list
+ * never reflows and the positions measured at drag start stay valid throughout.
  */
 export function useDragList({ onCombine, onMove }: Options) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -34,12 +44,14 @@ export function useDragList({ onCombine, onMove }: Options) {
   const pendingId = useRef<string | null>(null);
   const active = useRef(false);
   const moved = useRef(false);
+  const holdTimer = useRef<number | null>(null);
+  const awaitingHold = useRef(false);
   const scrollFrame = useRef<number | null>(null);
   const edgeVelocity = useRef(0);
   /**
    * Auto-scroll stays disarmed until the pointer has been away from both edges
-   * once. Otherwise grabbing a card that is already near the bottom of a phone
-   * screen scrolls the page out from under the finger the moment you press.
+   * once. Otherwise grabbing a card already near the bottom of a phone screen
+   * scrolls the page out from under the finger the moment you press.
    */
   const edgeArmed = useRef(false);
 
@@ -63,7 +75,7 @@ export function useDragList({ onCombine, onMove }: Options) {
     scrollFrame.current = requestAnimationFrame(step);
   }, []);
 
-  /** Document-space positions, captured once so scrolling does not invalidate them. */
+  /** Document-space positions, captured once so scrolling cannot invalidate them. */
   const measure = useCallback(() => {
     rects.current = [...items.current.entries()].map(([id, element]) => {
       const box = element.getBoundingClientRect();
@@ -74,10 +86,14 @@ export function useDragList({ onCombine, onMove }: Options) {
   const resolveTarget = useCallback((documentY: number, sourceId: string): DropTarget => {
     const hit = rects.current.find((r) => documentY >= r.top && documentY <= r.bottom);
     if (!hit) {
-      // Past the end of the list: drop after the last box.
-      const last = rects.current[rects.current.length - 1];
+      const sorted = [...rects.current].sort((a, b) => a.top - b.top);
+      const first = sorted[0];
+      const last = sorted[sorted.length - 1];
       if (last && documentY > last.bottom && last.id !== sourceId) {
         return { id: last.id, mode: "after" };
+      }
+      if (first && documentY < first.top && first.id !== sourceId) {
+        return { id: first.id, mode: "before" };
       }
       return null;
     }
@@ -90,7 +106,14 @@ export function useDragList({ onCombine, onMove }: Options) {
     return { id: hit.id, mode: "combine" };
   }, []);
 
+  const clearHold = useCallback(() => {
+    if (holdTimer.current !== null) clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+    awaitingHold.current = false;
+  }, []);
+
   const finish = useCallback(() => {
+    clearHold();
     stopEdgeScroll();
     setDraggingId(null);
     setDropTarget(null);
@@ -99,21 +122,50 @@ export function useDragList({ onCombine, onMove }: Options) {
     pendingId.current = null;
     active.current = false;
     edgeArmed.current = false;
-  }, [stopEdgeScroll]);
+  }, [clearHold, stopEdgeScroll]);
 
-  const onPointerDown = useCallback((id: string, event: React.PointerEvent) => {
-    if (event.button !== 0 && event.pointerType === "mouse") return;
-    pendingId.current = id;
-    origin.current = { x: event.clientX, y: event.clientY };
-    moved.current = false;
-    // Capture keeps move/up events coming to the handle even when the finger
-    // leaves it. Not fatal if the browser refuses.
-    try {
-      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const beginDrag = useCallback(
+    (id: string) => {
+      active.current = true;
+      moved.current = true;
+      measure();
+      setDraggingId(id);
+    },
+    [measure],
+  );
+
+  const startPress = useCallback(
+    (id: string, event: React.PointerEvent, requireHold: boolean) => {
+      const target = event.target as HTMLElement;
+      // Buttons and inputs inside a card must stay usable.
+      if (target.closest("[data-no-drag]")) return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+
+      pendingId.current = id;
+      origin.current = { x: event.clientX, y: event.clientY };
+      moved.current = false;
+
+      try {
+        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+      } catch {
+        /* capture is an optimisation, not a requirement */
+      }
+
+      // A mouse has no scroll gesture to compete with, so never make it wait.
+      if (requireHold && event.pointerType !== "mouse") {
+        awaitingHold.current = true;
+        holdTimer.current = window.setTimeout(() => {
+          awaitingHold.current = false;
+          holdTimer.current = null;
+          if (pendingId.current === id) {
+            navigator.vibrate?.(10);
+            beginDrag(id);
+          }
+        }, LONG_PRESS_MS);
+      }
+    },
+    [beginDrag],
+  );
 
   const onPointerMove = useCallback(
     (event: React.PointerEvent) => {
@@ -121,15 +173,21 @@ export function useDragList({ onCombine, onMove }: Options) {
       const from = origin.current;
       if (!id || !from) return;
 
-      const dx = event.clientX - from.x;
-      const dy = event.clientY - from.y;
+      const distance = Math.hypot(event.clientX - from.x, event.clientY - from.y);
+
+      if (awaitingHold.current) {
+        // Moving before the hold completes means the user wants to scroll.
+        if (distance > SCROLL_INTENT_PX) {
+          clearHold();
+          pendingId.current = null;
+          origin.current = null;
+        }
+        return;
+      }
 
       if (!active.current) {
-        if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
-        active.current = true;
-        moved.current = true;
-        measure();
-        setDraggingId(id);
+        if (distance < DRAG_THRESHOLD_PX) return;
+        beginDrag(id);
       }
 
       setPointer({ x: event.clientX, y: event.clientY });
@@ -138,7 +196,6 @@ export function useDragList({ onCombine, onMove }: Options) {
       const fromTop = event.clientY;
       const fromBottom = window.innerHeight - event.clientY;
       const inEdge = fromTop < EDGE_PX || fromBottom < EDGE_PX;
-
       if (!inEdge) edgeArmed.current = true;
 
       edgeVelocity.current =
@@ -146,7 +203,7 @@ export function useDragList({ onCombine, onMove }: Options) {
       if (edgeVelocity.current !== 0) runEdgeScroll();
       else stopEdgeScroll();
     },
-    [measure, resolveTarget, runEdgeScroll, stopEdgeScroll],
+    [beginDrag, clearHold, resolveTarget, runEdgeScroll, stopEdgeScroll],
   );
 
   const onPointerUp = useCallback(() => {
@@ -158,6 +215,16 @@ export function useDragList({ onCombine, onMove }: Options) {
     finish();
   }, [dropTarget, finish, onCombine, onMove]);
 
+  /** While dragging on touch, stop the browser scrolling the page as well. */
+  useEffect(() => {
+    if (!draggingId) return;
+    const block = (event: TouchEvent) => event.preventDefault();
+    document.addEventListener("touchmove", block, { passive: false });
+    return () => document.removeEventListener("touchmove", block);
+  }, [draggingId]);
+
+  useEffect(() => () => clearHold(), [clearHold]);
+
   /** True if the gesture that just ended was a drag, so a tap can be ignored. */
   const consumeDrag = useCallback(() => {
     const wasDrag = moved.current;
@@ -165,17 +232,27 @@ export function useDragList({ onCombine, onMove }: Options) {
     return wasDrag;
   }, []);
 
+  const shared = {
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel: finish,
+  };
+
   return {
     draggingId,
     dropTarget,
     pointer,
     registerItem,
     consumeDrag,
+    /** For the handle icon: starts dragging immediately. */
     handleProps: (id: string) => ({
-      onPointerDown: (event: React.PointerEvent) => onPointerDown(id, event),
-      onPointerMove,
-      onPointerUp,
-      onPointerCancel: finish,
+      onPointerDown: (event: React.PointerEvent) => startPress(id, event, false),
+      ...shared,
+    }),
+    /** For the whole card: needs a short hold on touch, so scrolling still works. */
+    cardProps: (id: string) => ({
+      onPointerDown: (event: React.PointerEvent) => startPress(id, event, true),
+      ...shared,
     }),
   };
 }

@@ -18,6 +18,8 @@ import { MicIndicator } from "./MicIndicator";
 import { Step, type StepState } from "./Stepper";
 import { StopNotice } from "./StopNotice";
 import { MicCheck } from "./MicCheck";
+import { Tabs } from "./Tabs";
+import { DataLayerView } from "./DataLayerView";
 
 // sessionStorage, not localStorage: the key dies when the tab closes.
 const KEY_STORAGE = "openai-api-key";
@@ -33,6 +35,7 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
   );
   // Start on the settings step if a key is already in this tab.
   const [step, setStep] = useState(() => (sessionStorage.getItem(KEY_STORAGE) ? 2 : 1));
+  const [tab, setTab] = useState<"improved" | "initial">("improved");
 
   const {
     status, sentences, interim, error, warning, stopReason,
@@ -42,6 +45,19 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
   } = useTranscription();
 
   const isRunning = status !== "idle";
+  const improvedTab = tab === "improved";
+  /** Once anything has been captured, Start becomes Record more. */
+  const hasRecorded = sentences.length > 0 || stopReason !== null;
+  /**
+   * Replaces the old "Stopped." block: a normal stop needs no explanation,
+   * but a timeout or an error would otherwise look like it stopped by itself.
+   */
+  const stopHint =
+    stopReason === "timeout"
+      ? `${SESSION_SECONDS}-second limit reached`
+      : stopReason === "error"
+        ? "Stopped by the error above"
+        : null;
 
   function saveKey(value: string) {
     setApiKey(value);
@@ -169,6 +185,24 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
       </Step>
 
       <Step index={4} title="Talk" state={stateOf(4)}>
+        <Tabs
+          label="Editing version"
+          tabs={[
+            { value: "improved", label: "Improved UX" },
+            { value: "initial", label: "Initial" },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+
+        {/* §7 — the microphone check comes before the controls it qualifies. */}
+        {improvedTab && (
+          <>
+            <MicCheck disabled={isRunning} />
+            <hr className="section-rule" />
+          </>
+        )}
+
         <div className="row">
           {isRunning ? (
             <button type="button" onClick={() => stop("manual")} className="primary">
@@ -177,14 +211,21 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
           ) : (
             <button
               type="button"
-              onClick={() => start(apiKey, model, language, segmentation)}
               className="primary"
+              onClick={() =>
+                start(apiKey, model, language, segmentation, {
+                  // §5 — carry on from what is already there, newest block on top.
+                  keepExisting: improvedTab && hasRecorded,
+                  insertAtTop: improvedTab,
+                })
+              }
             >
-              {stopReason ? "Record again" : "Start"}
+              {improvedTab ? (hasRecorded ? "Record more" : "Start") : stopReason ? "Record again" : "Start"}
             </button>
           )}
           <span className="countdown">{secondsLeft}s left</span>
           <MicIndicator status={status} level={level} speaking={speaking} />
+          {improvedTab && !isRunning && stopHint && <span className="stop-hint">{stopHint}</span>}
         </div>
 
         {isRunning && (
@@ -201,17 +242,22 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
 
         {error && <ErrorBanner message={error} />}
         {warning && <ErrorBanner message={warning} variant="warning" />}
-        {!isRunning && (
-          <StopNotice reason={stopReason} onRestart={() => start(apiKey, model, language, segmentation)} />
+
+        {!improvedTab && !isRunning && (
+          <StopNotice
+            reason={stopReason}
+            onRestart={() => start(apiKey, model, language, segmentation)}
+          />
         )}
 
-        <MicCheck disabled={isRunning} />
+        {!improvedTab && <MicCheck disabled={isRunning} />}
 
         <SentenceList
           sentences={sentences}
           interim={interim}
           // Editing is offered only once the recording has finished.
           editable={!isRunning}
+          variant={improvedTab ? "improved" : "initial"}
           onEdit={editSentence}
           onCombine={combineSentences}
           onMove={moveSentence}
@@ -223,6 +269,9 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
           Recording stops automatically after {SESSION_SECONDS} seconds. A rate-limited sentence is
           skipped with a warning — the session keeps running.
         </p>
+
+        {/* §6 — the data behind the boxes, off by default. */}
+        {improvedTab && <DataLayerView sentences={sentences} />}
       </Step>
     </div>
   );
