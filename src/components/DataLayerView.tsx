@@ -40,6 +40,15 @@ export function DataLayerView({ sentences }: { sentences: Sentence[] }) {
   );
 }
 
+/**
+ * `order` is not stored: it is the position on screen, so it is read off the
+ * array every render and cannot go stale when statements are reordered.
+ */
+function asRow(sentence: Sentence, index: number) {
+  return { order: index + 1, id: sentence.id, text: sentence.text,
+           language: sentence.language, createdAt: sentence.createdAt };
+}
+
 /** Minimal JSON pretty-printer with colouring — no dependency needed. */
 function highlight(sentences: Sentence[]) {
   if (sentences.length === 0) return <span className="json-punct">[]</span>;
@@ -47,24 +56,35 @@ function highlight(sentences: Sentence[]) {
   return (
     <>
       <span className="json-punct">[</span>
-      {sentences.map((sentence, index) => (
-        <span key={sentence.id}>
-          {"\n  "}
-          <span className="json-punct">{"{"}</span>
-          {(Object.keys(sentence) as (keyof Sentence)[]).map((key, keyIndex, keys) => (
-            <span key={key}>
-              {"\n    "}
-              <span className="json-key">&quot;{key}&quot;</span>
-              <span className="json-punct">: </span>
-              <span className="json-string">&quot;{sentence[key]}&quot;</span>
-              {keyIndex < keys.length - 1 && <span className="json-punct">,</span>}
-            </span>
-          ))}
-          {"\n  "}
-          <span className="json-punct">{"}"}</span>
-          {index < sentences.length - 1 && <span className="json-punct">,</span>}
-        </span>
-      ))}
+      {sentences.map((sentence, index) => {
+        const row = asRow(sentence, index);
+        const keys = Object.keys(row) as (keyof typeof row)[];
+        return (
+          <span key={sentence.id}>
+            {"\n  "}
+            <span className="json-punct">{"{"}</span>
+            {keys.map((key, keyIndex) => {
+              const value = row[key];
+              return (
+                <span key={key}>
+                  {"\n    "}
+                  <span className="json-key">&quot;{key}&quot;</span>
+                  <span className="json-punct">: </span>
+                  {typeof value === "number" ? (
+                    <span className="json-number">{value}</span>
+                  ) : (
+                    <span className="json-string">&quot;{value}&quot;</span>
+                  )}
+                  {keyIndex < keys.length - 1 && <span className="json-punct">,</span>}
+                </span>
+              );
+            })}
+            {"\n  "}
+            <span className="json-punct">{"}"}</span>
+            {index < sentences.length - 1 && <span className="json-punct">,</span>}
+          </span>
+        );
+      })}
       {"\n"}
       <span className="json-punct">]</span>
     </>

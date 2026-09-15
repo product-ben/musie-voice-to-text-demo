@@ -49,35 +49,12 @@ export function useSentences() {
     if (undoTimer.current) clearTimeout(undoTimer.current);
   }, []);
 
-  /** Called by the transcriber as each turn finalises. */
+  /** Called by the transcriber as each turn finalises. Newest goes last. */
   const append = useCallback((texts: string[], language: string) => {
-    setSentences((previous) => [
-      ...previous,
-      ...texts.map((text) => ({ id: newId(), text, language })),
-    ]);
-  }, []);
-
-  /**
-   * Marks where the current recording session's statements begin, so a second
-   * session can insert its block above everything older while the statements
-   * within it stay in the order they were spoken.
-   */
-  const sessionStart = useRef(0);
-  /** The same number as a render value, so the UI can show what is coming next. */
-  const [sessionCount, setSessionCount] = useState(0);
-
-  const beginSession = useCallback(() => {
-    sessionStart.current = 0;
-    setSessionCount(0);
-  }, []);
-
-  const appendToSession = useCallback((texts: string[], language: string) => {
-    // Ids and the cursor are computed out here: a state updater may run twice.
-    const fresh = texts.map((text) => ({ id: newId(), text, language }));
-    const at = sessionStart.current;
-    sessionStart.current = at + fresh.length;
-    setSessionCount(sessionStart.current);
-    setSentences((previous) => [...previous.slice(0, at), ...fresh, ...previous.slice(at)]);
+    const at = new Date().toISOString();
+    // Ids and the timestamp are computed out here: a state updater may run twice.
+    const fresh = texts.map((text) => ({ id: newId(), text, language, createdAt: at }));
+    setSentences((previous) => [...previous, ...fresh]);
   }, []);
 
   const reset = useCallback(() => {
@@ -153,11 +130,8 @@ export function useSentences() {
 
   return {
     sentences,
-    sessionCount,
     undoLabel: undoable?.label ?? null,
     append,
-    appendToSession,
-    beginSession,
     reset,
     edit,
     combine,

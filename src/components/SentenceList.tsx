@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDragList } from "../hooks/useDragList";
 import { SentenceCard } from "./SentenceCard";
 import { SentenceCardV2 } from "./SentenceCardV2";
@@ -10,8 +10,8 @@ type Props = {
   interim: string;
   /** A statement is on its way: show the box before any words arrive. */
   pending: boolean;
-  /** Where the next statement will land, so the box waits in the right place. */
-  pendingIndex?: number;
+  /** Follow the end of the list as it grows. Off once recording has stopped. */
+  autoScroll?: boolean;
   /** Editing is only offered once recording has stopped. */
   editable: boolean;
   onEdit: (id: string, text: string) => void;
@@ -23,7 +23,7 @@ type Props = {
 };
 
 export function SentenceList({
-  sentences, interim, pending, pendingIndex, editable, onEdit, onCombine, onMove, onDelete,
+  sentences, interim, pending, autoScroll = false, editable, onEdit, onCombine, onMove, onDelete,
   variant = "initial",
 }: Props) {
   const improved = variant === "improved";
@@ -46,6 +46,20 @@ export function SentenceList({
   const [announcement, setAnnouncement] = useState("");
 
   const drag = useDragList({ onCombine: combineInOrder, onMove });
+
+  /**
+   * Keeps the newest statement on screen once the list outgrows the viewport.
+   * "nearest" means nothing moves while the end is already visible, so the page
+   * does not jump under someone who has scrolled up to read.
+   */
+  const endOfList = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!autoScroll) return;
+    endOfList.current?.scrollIntoView({
+      block: "nearest",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  }, [autoScroll, sentences.length, interim, pending]);
 
   if (sentences.length === 0 && !interim && !pending) {
     return <p className="placeholder">Finished statements will appear here, one block each.</p>;
@@ -89,8 +103,6 @@ export function SentenceList({
 
   const dragged = sentences.find((s) => s.id === drag.draggingId);
 
-  /** Drawn inline at the insertion point rather than always at the end. */
-  const at = Math.min(pendingIndex ?? sentences.length, sentences.length);
   const waiting = (interim || pending) && !drag.draggingId && (
     <p className={`sentence-interim${interim ? "" : " is-waiting"}`}>
       {interim || (
@@ -116,8 +128,6 @@ export function SentenceList({
           {improved && " On touch, hold briefly to drag from anywhere on a card."}
         </p>
       )}
-
-      {at === 0 && waiting}
 
       {sentences.map((sentence, index) => {
         const target = drag.dropTarget?.id === sentence.id ? drag.dropTarget.mode : null;
@@ -165,10 +175,13 @@ export function SentenceList({
               />
             )}
             {target === "after" && <div className="drop-line" aria-hidden="true" />}
-            {at === index + 1 && waiting}
           </div>
         );
       })}
+
+      {waiting}
+
+      <div ref={endOfList} aria-hidden="true" />
 
       {/* Follows the finger so the gesture has something to hold on to. */}
       {dragged && drag.pointer && (

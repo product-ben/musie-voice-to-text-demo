@@ -992,6 +992,7 @@ button:disabled {
 .json-key { color: #9cdcfe; }
 .json-string { color: #ce9178; }
 .json-punct { color: #808080; }
+.json-number { color: #b5cea8; }
 
 @media (prefers-reduced-motion: reduce) {
   .card2,

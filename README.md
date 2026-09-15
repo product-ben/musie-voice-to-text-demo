@@ -125,14 +125,21 @@ Use it to tell a microphone problem apart from a key problem before spending req
 
 ## Why a session ends
 
-A session that stops without explanation reads as random. There are exactly three
+A session that stops without explanation reads as random. There are exactly four
 reasons, and the UI always names the one that applied:
 
 | Reason | Shown as |
 | --- | --- |
 | You pressed Stop | "Stopped." |
 | The 60-second limit | "Stopped: the 60-second limit was reached." |
+| `IDLE_STOP_MS` of silence | "Stopped after 6s of silence." |
 | A fatal error | "Stopped because of the error above." |
+
+The silence cut-off runs from the moment recording starts and resets on any audible
+chunk, so it also catches a session started and then walked away from — billing
+follows audio streamed, and silence is billed like anything else. It never fires
+while a statement is still being transcribed: closing the socket then would throw
+that statement away.
 
 **Rate limits no longer end the session.** Every sentence is a separate API request, so
 on a low tier the third sentence of an ordinary session can be rejected. That used to
@@ -160,6 +167,37 @@ the 30-day abuse-monitoring window applies. Only customers approved for Zero Dat
 Retention or Modified Abuse Monitoring are excluded, and that requires applying to
 OpenAI. If you need that guarantee for real users, it has to be arranged with OpenAI
 directly; it is not something this app can switch on.
+
+## The transcript list
+
+Statements are appended to the **end** of the list, so it reads top-down in the order
+they were spoken, and **Record more** continues at the bottom rather than starting a
+new block above. The list sits above the record button, so the button stays in the
+same place as statements accumulate beneath it.
+
+Once the list outgrows the viewport the page follows the newest statement, using
+`scrollIntoView({ block: "nearest" })` — nothing moves while the end of the list is
+already on screen, so scrolling up to read is not fought by the next statement
+arriving. Following stops when recording does, so editing is never interrupted.
+
+### The data layer
+
+A switch under the transcript shows the array as it is held in state:
+
+```json
+[
+  { "order": 1,
+    "id": "0f2c…",
+    "text": "Heute ist ein schöner Tag.",
+    "language": "de",
+    "createdAt": "2026-09-15T13:25:54.440Z" }
+]
+```
+
+`order` is **not stored**. It is the statement's position on screen, read off the array
+on every render, so combining, reordering and deleting renumber it immediately rather
+than leaving a stale field behind. `createdAt` is stored, set when the statement was
+finalised; combining keeps the surviving statement's timestamp.
 
 ## Live demo
 
@@ -254,6 +292,12 @@ sentences at the cost of feeling sluggish. `VAD_THRESHOLD` (raise it in a noisy 
 and `PREFIX_PADDING_MS` sit alongside it.
 
 The pause detection happens on OpenAI's side — the browser just streams audio.
+
+Two other timers sit above it and are unrelated to sentence splitting:
+`SESSION_SECONDS` (60) caps the whole session, and `IDLE_STOP_MS` (6000) ends it once
+nothing audible has arrived for that long. `CLIENT_SILENCE_LEVEL` decides what counts
+as audible for both the idle cut-off and, on a model without server VAD, for turn
+commits.
 
 ---
 
@@ -381,7 +425,8 @@ The socket closes on **Stop**, on the **60-second timeout**, and on **page unloa
 ## Scope
 
 Built: live interim text, per-sentence finalisation, the `onSentenceFinal` hook,
-60-second countdown with manual stop, language selector.
+60-second countdown with manual stop, a silence cut-off, language selector,
+transcript editing.
 
 Deliberately not built: feeling/emotion detection (the hook is the placeholder for
 it), any backend or token endpoint, transcript persistence, accounts, other STT

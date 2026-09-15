@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CLIENT_SILENCE_LEVEL,
   CLIENT_SILENCE_MS,
+  IDLE_STOP_MS,
   MODELS,
   SESSION_SECONDS,
   type LanguageChoice,
@@ -18,7 +19,7 @@ import { useSentences } from "./useSentences";
 export type Status = "idle" | "connecting" | "recording";
 
 /** Why the last session ended — so the UI never has to say "it just stopped". */
-export type StopReason = "manual" | "timeout" | "error" | null;
+export type StopReason = "manual" | "timeout" | "silence" | "error" | null;
 
 export function useTranscription() {
   const [status, setStatus] = useState<Status>("idle");
@@ -46,6 +47,14 @@ export function useTranscription() {
   /** Browser-side turn detection, used when the model has no server VAD. */
   const heardSpeech = useRef(false);
   const silentSince = useRef<number | null>(null);
+  /** Last moment any audible sound arrived, for the idle cut-off. */
+  const lastSound = useRef(0);
+  /**
+   * Whether a statement is still being transcribed. The idle timer reads it,
+   * and it must be a ref: the timer callback would otherwise close over the
+   * value from the render that started it.
+   */
+  const awaitingStatement = useRef(false);
 
   const stop = useCallback((reason: StopReason = "manual") => {
     recorder.current?.stop();
@@ -54,6 +63,7 @@ export function useTranscription() {
     connection.current = null;
     setInterim("");
     setPending(false);
+    awaitingStatement.current = false;
     setLevel(0);
     setSpeaking(false);
     setStatus((previous) => {
@@ -69,7 +79,7 @@ export function useTranscription() {
       model: TranscriptionModel,
       language: LanguageChoice,
       segmentation: SegmentationMode = "silence",
-      options?: { keepExisting?: boolean; insertAtTop?: boolean },
+      options?: { keepExisting?: boolean },
     ) => {
       setError(null);
       setWarning(null);
@@ -77,10 +87,11 @@ export function useTranscription() {
       setLevel(0);
       setSpeaking(false);
       if (!options?.keepExisting) list.reset();
-      list.beginSession();
       setInterim("");
       setPending(false);
+      awaitingStatement.current = false;
       setSecondsLeft(SESSION_SECONDS);
+      lastSound.current = Date.now();
       deadline.current = Date.now() + SESSION_SECONDS * 1000;
       heardSpeech.current = false;
       silentSince.current = null;
@@ -94,15 +105,20 @@ export function useTranscription() {
           case "speech":
             setSpeaking(event.active);
             // Speech stopping does not clear it: the words are still coming.
-            if (event.active) setPending(true);
+            if (event.active) {
+              setPending(true);
+              awaitingStatement.current = true;
+            }
             break;
           case "interim":
             setInterim(event.text);
             setPending(true);
+            awaitingStatement.current = true;
             break;
           case "final": {
             setInterim("");
             setPending(false);
+            awaitingStatement.current = false;
             // One turn can yield several sentences in punctuation mode.
             // Hesitation sounds are cleaned off as the statement becomes a
             // card; the live grey text still shows what was actually said.
@@ -110,8 +126,7 @@ export function useTranscription() {
               .map((part) => stripFillers(part, event.language))
               .filter(Boolean);
             if (parts.length === 0) break;
-            if (options?.insertAtTop) list.appendToSession(parts, event.language);
-            else list.append(parts, event.language);
+            list.append(parts, event.language);
             parts.forEach((part) => onSentenceFinal(part, event.language));
             break;
           }
@@ -121,6 +136,7 @@ export function useTranscription() {
             // That turn will never arrive, so stop waiting for it.
             setInterim("");
             setPending(false);
+            awaitingStatement.current = false;
             break;
           case "error":
             setError(event.message);
@@ -137,9 +153,12 @@ export function useTranscription() {
         recorder.current = await startRecorder((chunk, chunkLevel) => {
           connection.current?.sendAudio(chunk);
           setLevel(chunkLevel);
-          if (!browserDecidesTurns) return;
 
           const loud = chunkLevel >= CLIENT_SILENCE_LEVEL;
+          // Tracked for every model, not just the ones that commit their own
+          // turns, because the idle cut-off applies to all of them.
+          if (loud) lastSound.current = Date.now();
+          if (!browserDecidesTurns) return;
           setSpeaking(loud);
 
           if (loud) {
@@ -178,6 +197,13 @@ export function useTranscription() {
       if (remaining === 0) {
         clearInterval(timer);
         stop("timeout");
+        return;
+      }
+      // Waiting on a statement holds the session open: closing the socket
+      // mid-transcription would lose it.
+      if (!awaitingStatement.current && Date.now() - lastSound.current >= IDLE_STOP_MS) {
+        clearInterval(timer);
+        stop("silence");
       }
     }, 250);
     return () => clearInterval(timer);
@@ -196,7 +222,6 @@ export function useTranscription() {
   return {
     status,
     sentences: list.sentences,
-    sessionCount: list.sessionCount,
     editSentence: list.edit,
     combineSentences: list.combine,
     moveSentence: list.move,

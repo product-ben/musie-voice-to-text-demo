@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   DEFAULT_MODEL,
+  IDLE_STOP_MS,
   LANGUAGE_OPTIONS,
   MODELS,
   MODEL_OPTIONS,
@@ -61,7 +62,7 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
   const [tab, setTab] = useState<"improved" | "initial">("improved");
 
   const {
-    status, sentences, sessionCount, interim, pending, error, warning, stopReason,
+    status, sentences, interim, pending, error, warning, stopReason,
     level, speaking, secondsLeft, start, stop,
     editSentence, combineSentences, moveSentence, deleteSentence,
     undoLabel, undo, dismissUndo,
@@ -78,9 +79,11 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
   const stopHint =
     stopReason === "timeout"
       ? `${SESSION_SECONDS}-second limit reached`
-      : stopReason === "error"
-        ? "Stopped by the error above"
-        : null;
+      : stopReason === "silence"
+        ? `Stopped after ${IDLE_STOP_MS / 1000}s of silence`
+        : stopReason === "error"
+          ? "Stopped by the error above"
+          : null;
 
   function saveKey(value: string) {
     setApiKey(value);
@@ -243,6 +246,22 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
           </>
         )}
 
+        <SentenceList
+          sentences={sentences}
+          interim={interim}
+          pending={pending}
+          // Keep the newest statement in view while the list grows past the screen.
+          autoScroll={isRunning}
+          // Editing is offered only once the recording has finished.
+          editable={!isRunning}
+          variant={improvedTab ? "improved" : "initial"}
+          onEdit={editSentence}
+          onCombine={combineSentences}
+          onMove={moveSentence}
+          onDelete={deleteSentence}
+        />
+        <UndoBar label={undoLabel} onUndo={undo} onDismiss={dismissUndo} />
+
         <div className="row">
           {isRunning ? (
             <button type="button" onClick={() => stop("manual")} className="primary">
@@ -253,14 +272,13 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
               type="button"
               className="primary"
               onClick={() =>
+                // Carry on from what is already there, appending to the end.
                 start(apiKey, model, language, segmentation, {
-                  // §5 — carry on from what is already there, newest block on top.
                   keepExisting: improvedTab && hasRecorded,
-                  insertAtTop: improvedTab,
                 })
               }
             >
-              {improvedTab ? (hasRecorded ? "Record more" : "Start") : stopReason ? "Record again" : "Start"}
+              {improvedTab ? (hasRecorded ? "Record more" : "Record now") : stopReason ? "Record again" : "Start"}
             </button>
           )}
           <span className="countdown">{secondsLeft}s left</span>
@@ -292,26 +310,10 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
 
         {!improvedTab && <MicCheck disabled={isRunning} />}
 
-        <SentenceList
-          sentences={sentences}
-          interim={interim}
-          pending={pending}
-          // Improved mode inserts each session's statements as a block, so the
-          // waiting box belongs at that cursor, not at the end of the list.
-          pendingIndex={improvedTab ? sessionCount : undefined}
-          // Editing is offered only once the recording has finished.
-          editable={!isRunning}
-          variant={improvedTab ? "improved" : "initial"}
-          onEdit={editSentence}
-          onCombine={combineSentences}
-          onMove={moveSentence}
-          onDelete={deleteSentence}
-        />
-        <UndoBar label={undoLabel} onUndo={undo} onDismiss={dismissUndo} />
-
         <p className="note">
-          Recording stops automatically after {SESSION_SECONDS} seconds. A rate-limited sentence is
-          skipped with a warning — the session keeps running.
+          Recording stops automatically after {SESSION_SECONDS} seconds, or after{" "}
+          {IDLE_STOP_MS / 1000} seconds of silence. A rate-limited sentence is skipped with a
+          warning — the session keeps running.
         </p>
 
         {/* §6 — the data behind the boxes, off by default. */}

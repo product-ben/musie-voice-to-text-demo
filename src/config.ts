@@ -86,6 +86,14 @@ export const PREFIX_PADDING_MS = 300;
 /** Recording auto-stops after this many seconds. */
 export const SESSION_SECONDS = 60;
 
+/**
+ * Recording also stops once nobody has said anything for this long, so an
+ * abandoned session does not keep paying for silence. Measured from the start
+ * of recording, and never while a statement is still being transcribed —
+ * cutting the socket then would throw that statement away.
+ */
+export const IDLE_STOP_MS = 6000;
+
 /** The Realtime API expects mono 16-bit PCM at this rate. */
 export const SAMPLE_RATE = 24000;
 

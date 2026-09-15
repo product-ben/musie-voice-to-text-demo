@@ -1,9 +1,9 @@
-import { SESSION_SECONDS } from "../config";
+import { IDLE_STOP_MS, SESSION_SECONDS } from "../config";
 import type { StopReason } from "../hooks/useTranscription";
 
 /**
  * A session that ends without explanation reads as "it randomly stopped".
- * Always say which of the three things happened.
+ * Always say which of the four things happened.
  */
 export function StopNotice({ reason, onRestart }: { reason: StopReason; onRestart: () => void }) {
   if (!reason) return null;
@@ -11,9 +11,11 @@ export function StopNotice({ reason, onRestart }: { reason: StopReason; onRestar
   const text =
     reason === "timeout"
       ? `Stopped: the ${SESSION_SECONDS}-second limit was reached.`
-      : reason === "manual"
-        ? "Stopped."
-        : "Stopped because of the error above.";
+      : reason === "silence"
+        ? `Stopped: nothing was said for ${IDLE_STOP_MS / 1000} seconds.`
+        : reason === "manual"
+          ? "Stopped."
+          : "Stopped because of the error above.";
 
   return (
     <p className="stop-notice">
