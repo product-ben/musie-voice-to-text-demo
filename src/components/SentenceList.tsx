@@ -36,6 +36,8 @@ export function SentenceList({
   };
   const [engagedId, setEngagedId] = useState<string | null>(null);
   const [liftedId, setLiftedId] = useState<string | null>(null);
+  /** Only one card's actions are open at a time, so the list stays compact. */
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
 
   const drag = useDragList({ onCombine: combineInOrder, onMove });
@@ -110,6 +112,10 @@ export function SentenceList({
                 dragging={drag.draggingId === sentence.id}
                 dropMode={target}
                 liftedByKeyboard={liftedId === sentence.id}
+                menuOpen={openMenuId === sentence.id}
+                onToggleMenu={() =>
+                  setOpenMenuId((current) => (current === sentence.id ? null : sentence.id))
+                }
                 onSave={(text) => onEdit(sentence.id, text)}
                 onDelete={() => onDelete(sentence.id)}
                 handleProps={drag.handleProps(sentence.id)}

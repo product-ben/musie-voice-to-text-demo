@@ -745,13 +745,16 @@ button:disabled {
   border-left: 3px solid #1a1a1a;
   border-radius: 4px;
   margin: 0 0 0.5rem;
-  padding: 0.7rem 0.6rem 0.7rem 0.9rem;
+  padding: 0.35rem 0.4rem 0.35rem 0.9rem;
   transition: box-shadow 140ms ease, border-color 140ms ease, opacity 140ms ease;
 }
 
 .card2-body {
   flex: 1;
   min-width: 0;
+  /* Centres a short statement against the two-button stack beside it. */
+  align-self: center;
+  padding: 0.3rem 0;
 }
 
 /* Controls stack on the right: drag, edit, delete. Always visible. */
@@ -759,13 +762,13 @@ button:disabled {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  align-self: flex-start;
+  gap: 0;
+  align-self: center;
 }
 
 .tool {
   width: 44px;
-  height: 44px;
+  height: 38px;
   display: grid;
   place-items: center;
   border: 0;
@@ -939,4 +942,33 @@ button:disabled {
   .switch-knob {
     transition: none;
   }
+}
+
+/* Actions live inside the box, revealed by the more button. */
+.card-menu {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.menu-button {
+  flex: 1;
+  min-height: 44px;
+  font-size: 0.85rem;
+  border: 1px solid #d5d5d5;
+  background: #fff;
+}
+
+.menu-button.is-danger {
+  color: #8a1c14;
+  border-color: #f0c9c6;
+}
+
+.card2.is-menu-open {
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.08);
+}
+
+.card2.is-menu-open .tool[aria-expanded="true"] {
+  color: #1a1a1a;
+  background: #f2f2f2;
 }

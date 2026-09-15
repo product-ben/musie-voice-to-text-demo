@@ -9,6 +9,8 @@ type Props = {
   dragging: boolean;
   dropMode: DropMode | null;
   liftedByKeyboard: boolean;
+  menuOpen: boolean;
+  onToggleMenu: () => void;
   onSave: (text: string) => void;
   onDelete: () => void;
   handleProps: Record<string, unknown>;
@@ -23,7 +25,8 @@ type Props = {
  */
 export function SentenceCardV2({
   sentence, position, editable, dragging, dropMode, liftedByKeyboard,
-  onSave, onDelete, handleProps, cardProps, onHandleKeyDown, registerRef,
+  menuOpen, onToggleMenu, onSave, onDelete, handleProps, cardProps,
+  onHandleKeyDown, registerRef,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(sentence.text);
@@ -40,6 +43,7 @@ export function SentenceCardV2({
   function startEditing() {
     setDraft(sentence.text);
     setEditing(true);
+    onToggleMenu();
   }
 
   function save() {
@@ -53,6 +57,7 @@ export function SentenceCardV2({
     dropMode === "combine" && "is-merge-target",
     liftedByKeyboard && "is-lifted",
     editing && "is-editing",
+    menuOpen && "is-menu-open",
   ]
     .filter(Boolean)
     .join(" ");
@@ -75,6 +80,17 @@ export function SentenceCardV2({
           />
         ) : (
           <p className="sentence-text">{sentence.text}</p>
+        )}
+
+        {menuOpen && !editing && (
+          <div className="card-menu" data-no-drag>
+            <button type="button" className="menu-button" onClick={startEditing}>
+              Edit
+            </button>
+            <button type="button" className="menu-button is-danger" onClick={onDelete}>
+              Delete
+            </button>
+          </div>
         )}
 
         {editing && (
@@ -109,25 +125,15 @@ export function SentenceCardV2({
             type="button"
             className="tool"
             data-no-drag
-            onClick={startEditing}
-            aria-label={`Edit statement ${position}`}
-            title="Edit"
+            onClick={onToggleMenu}
+            aria-expanded={menuOpen}
+            aria-label={`Actions for statement ${position}`}
+            title="More"
           >
-            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-              <path d="M11.6 1.8a1.3 1.3 0 0 1 1.9 0l.7.7a1.3 1.3 0 0 1 0 1.9l-.9.9-2.6-2.6.9-.9ZM9.8 3.6l2.6 2.6-6.5 6.5-3.2.6.6-3.2 6.5-6.5Z" />
-            </svg>
-          </button>
-
-          <button
-            type="button"
-            className="tool tool-danger"
-            data-no-drag
-            onClick={onDelete}
-            aria-label={`Delete statement ${position}`}
-            title="Delete"
-          >
-            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-              <path d="M6 1.5h4a.5.5 0 0 1 .5.5v1h3a.5.5 0 0 1 0 1h-11a.5.5 0 0 1 0-1h3V2a.5.5 0 0 1 .5-.5Zm.5 1.5h3V2.5h-3V3ZM3.6 5h8.8l-.6 8.2a1.3 1.3 0 0 1-1.3 1.2H5.5a1.3 1.3 0 0 1-1.3-1.2L3.6 5Zm2.4 1.8v5.4h1V6.8H6Zm3 0v5.4h1V6.8H9Z" />
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+              <circle cx="8" cy="3" r="1.5" />
+              <circle cx="8" cy="8" r="1.5" />
+              <circle cx="8" cy="13" r="1.5" />
             </svg>
           </button>
         </div>

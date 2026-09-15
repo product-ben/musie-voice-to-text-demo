@@ -83,6 +83,12 @@ export function HowItWorks() {
           Partial text can be revised by what follows, so treat it as a preview. Only the
           finished text is authoritative.
         </li>
+        <li>
+          Hesitation sounds (<em>ähm</em>, <em>äh</em>, <em>hmm</em>) are stripped as the
+          statement turns into a block, so the grey preview shows what you said and the block
+          shows it tidied. The word lists are per language, because the obvious English
+          fillers — <em>um</em>, <em>er</em> — are ordinary German words.
+        </li>
       </ul>
 
       <h3>When and why it stops</h3>

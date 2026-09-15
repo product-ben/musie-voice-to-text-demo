@@ -8,6 +8,7 @@ import {
   type TranscriptionModel,
 } from "../config";
 import { segment } from "../segmentation";
+import { stripFillers } from "../transcript/fillers";
 import { MicrophoneError, startRecorder, type Recorder } from "../audio/recorder";
 import { connectRealtime, type RealtimeConnection } from "../realtime/connection";
 import { onSentenceFinal } from "../onSentenceFinal";
@@ -90,7 +91,12 @@ export function useTranscription() {
           case "final": {
             setInterim("");
             // One turn can yield several sentences in punctuation mode.
-            const parts = segment(event.text, segmentation);
+            // Hesitation sounds are cleaned off as the statement becomes a
+            // card; the live grey text still shows what was actually said.
+            const parts = segment(event.text, segmentation)
+              .map((part) => stripFillers(part, event.language))
+              .filter(Boolean);
+            if (parts.length === 0) break;
             if (options?.insertAtTop) list.appendToSession(parts, event.language);
             else list.append(parts, event.language);
             parts.forEach((part) => onSentenceFinal(part, event.language));
