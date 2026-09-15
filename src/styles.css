@@ -282,17 +282,6 @@ button:disabled {
   margin-top: 1.5rem;
 }
 
-/* Finalised sentences: solid, each its own block. */
-.sentence-final {
-  background: #fff;
-  border: 1px solid #e4e4e4;
-  border-left: 3px solid #1a1a1a;
-  padding: 0.7rem 0.9rem;
-  border-radius: 4px;
-  margin: 0 0 0.5rem;
-  line-height: 1.5;
-}
-
 /* Interim text: greyed and italic, so it reads as "not committed yet". */
 .sentence-interim {
   color: #999;
@@ -469,4 +458,240 @@ button:disabled {
   background: #fdecea;
   border: 1px solid #f5c2c0;
   color: #8a1c14;
+}
+
+/* ── Editable statement cards ──────────────────────────────── */
+.edit-hint {
+  font-size: 0.75rem;
+  color: #888;
+  margin: 0 0 0.6rem;
+  line-height: 1.5;
+}
+
+.card-slot {
+  position: relative;
+}
+
+.sentence-card {
+  background: #fff;
+  border: 1px solid #e4e4e4;
+  border-left: 3px solid #1a1a1a;
+  border-radius: 4px;
+  margin: 0 0 0.5rem;
+  padding: 0.7rem 0.9rem;
+  transition: box-shadow 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+
+.card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.sentence-text {
+  margin: 0;
+  line-height: 1.5;
+  flex: 1;
+  /* Stops a long unbroken word forcing a horizontal scrollbar on a phone. */
+  overflow-wrap: anywhere;
+}
+
+/* Level 1 — resting: the handle is present but quiet. */
+.drag-handle {
+  flex: none;
+  /* 44px is the minimum comfortable touch target. */
+  width: 44px;
+  height: 44px;
+  margin: -0.55rem -0.4rem -0.55rem -0.5rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  color: #c0c0c0;
+  cursor: grab;
+  /* Without this the browser scrolls the page instead of dragging the card. */
+  touch-action: none;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.drag-handle svg {
+  fill: currentColor;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Level 2 — engaged: actions appear on hover, tap, or keyboard focus. */
+.card-actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 160ms ease, opacity 160ms ease, margin-top 160ms ease;
+}
+
+.sentence-card.is-engaged .card-actions,
+.sentence-card.is-editing .card-actions,
+.sentence-card:focus-within .card-actions {
+  max-height: 3.5rem;
+  opacity: 1;
+  margin-top: 0.6rem;
+}
+
+@media (hover: hover) {
+  .sentence-card:hover .card-actions {
+    max-height: 3.5rem;
+    opacity: 1;
+    margin-top: 0.6rem;
+  }
+  .sentence-card:hover .drag-handle {
+    color: #888;
+  }
+}
+
+.sentence-card.is-engaged,
+.sentence-card:focus-within {
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.08);
+}
+
+.sentence-card.is-engaged .drag-handle {
+  color: #888;
+}
+
+.card-actions button {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+  min-height: 40px;
+}
+
+.card-actions .danger {
+  color: #8a1c14;
+  border-color: #f0c9c6;
+}
+
+/* Level 3 — editing. */
+.sentence-input {
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem;
+  border: 1px solid #1a1a1a;
+  border-radius: 6px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* ── Drag feedback ─────────────────────────────────────────── */
+.sentence-card.is-dragging {
+  opacity: 0.35;
+  border-style: dashed;
+}
+
+.sentence-card.is-merge-target {
+  border-color: #1a7f37;
+  border-left-color: #1a7f37;
+  box-shadow: 0 0 0 2px rgb(26 127 55 / 0.25);
+}
+
+.sentence-card.is-lifted {
+  box-shadow: 0 0 0 2px #1a1a1a;
+}
+
+.drop-line {
+  height: 3px;
+  background: #1a1a1a;
+  border-radius: 2px;
+  margin: 0.25rem 0;
+}
+
+.drag-preview {
+  position: fixed;
+  z-index: 50;
+  transform: translate(-50%, -140%);
+  max-width: 17rem;
+  padding: 0.45rem 0.7rem;
+  background: #1a1a1a;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Stops text being selected instead of the card being dragged. */
+.transcript.is-dragging-list {
+  user-select: none;
+}
+
+/* ── Undo ──────────────────────────────────────────────────── */
+.undo-bar {
+  position: sticky;
+  bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  background: #1a1a1a;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+
+.undo-bar span {
+  flex: 1;
+}
+
+.undo-bar button {
+  background: transparent;
+  border: 1px solid #555;
+  color: #fff;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  min-height: 36px;
+}
+
+.undo-bar .undo-close {
+  border: 0;
+  padding: 0.35rem 0.5rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Narrow screens: let the action row use the full width. */
+@media (max-width: 480px) {
+  .card-actions {
+    justify-content: stretch;
+  }
+  .card-actions button {
+    flex: 1;
+  }
+  .drag-preview {
+    max-width: 12rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sentence-card,
+  .card-actions,
+  .drag-handle {
+    transition: none;
+  }
 }

@@ -10,7 +10,8 @@ import {
   type TranscriptionModel,
 } from "../config";
 import { useTranscription } from "../hooks/useTranscription";
-import { Transcript } from "./Transcript";
+import { SentenceList } from "./SentenceList";
+import { UndoBar } from "./UndoBar";
 import { ErrorBanner } from "./ErrorBanner";
 import { SegmentedToggle } from "./SegmentedToggle";
 import { MicIndicator } from "./MicIndicator";
@@ -36,6 +37,8 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
   const {
     status, sentences, interim, error, warning, stopReason,
     level, speaking, secondsLeft, start, stop,
+    editSentence, combineSentences, moveSentence, deleteSentence,
+    undoLabel, undo, dismissUndo,
   } = useTranscription();
 
   const isRunning = status !== "idle";
@@ -204,7 +207,17 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
 
         <MicCheck disabled={isRunning} />
 
-        <Transcript sentences={sentences} interim={interim} />
+        <SentenceList
+          sentences={sentences}
+          interim={interim}
+          // Editing is offered only once the recording has finished.
+          editable={!isRunning}
+          onEdit={editSentence}
+          onCombine={combineSentences}
+          onMove={moveSentence}
+          onDelete={deleteSentence}
+        />
+        <UndoBar label={undoLabel} onUndo={undo} onDismiss={dismissUndo} />
 
         <p className="note">
           Recording stops automatically after {SESSION_SECONDS} seconds. A rate-limited sentence is

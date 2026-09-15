@@ -11,6 +11,7 @@ import { segment } from "../segmentation";
 import { MicrophoneError, startRecorder, type Recorder } from "../audio/recorder";
 import { connectRealtime, type RealtimeConnection } from "../realtime/connection";
 import { onSentenceFinal } from "../onSentenceFinal";
+import { useSentences } from "./useSentences";
 
 export type Status = "idle" | "connecting" | "recording";
 
@@ -19,7 +20,7 @@ export type StopReason = "manual" | "timeout" | "error" | null;
 
 export function useTranscription() {
   const [status, setStatus] = useState<Status>("idle");
-  const [sentences, setSentences] = useState<string[]>([]);
+  const list = useSentences();
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -65,7 +66,7 @@ export function useTranscription() {
       setStopReason(null);
       setLevel(0);
       setSpeaking(false);
-      setSentences([]);
+      list.reset();
       setInterim("");
       setSecondsLeft(SESSION_SECONDS);
       deadline.current = Date.now() + SESSION_SECONDS * 1000;
@@ -88,7 +89,7 @@ export function useTranscription() {
             setInterim("");
             // One turn can yield several sentences in punctuation mode.
             const parts = segment(event.text, segmentation);
-            setSentences((previous) => [...previous, ...parts]);
+            list.append(parts, event.language);
             parts.forEach((part) => onSentenceFinal(part, event.language));
             break;
           }
@@ -138,7 +139,7 @@ export function useTranscription() {
         stop("error");
       }
     },
-    [stop],
+    [stop, list],
   );
 
   // The countdown reads a fixed deadline, so stopping happens inside the timer
@@ -168,7 +169,14 @@ export function useTranscription() {
 
   return {
     status,
-    sentences,
+    sentences: list.sentences,
+    editSentence: list.edit,
+    combineSentences: list.combine,
+    moveSentence: list.move,
+    deleteSentence: list.remove,
+    undoLabel: list.undoLabel,
+    undo: list.undo,
+    dismissUndo: list.dismissUndo,
     interim,
     error,
     warning,
