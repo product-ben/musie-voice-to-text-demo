@@ -738,7 +738,9 @@ button:disabled {
 /* ── Reworked statement card (improved tab) ────────────────── */
 .card2 {
   display: flex;
-  align-items: stretch;
+  /* center, not stretch: the tool stack must keep its natural height rather
+     than being squeezed into the text's, which made the buttons overlap. */
+  align-items: center;
   gap: 0.5rem;
   background: #fff;
   border: 1px solid #e4e4e4;
@@ -752,8 +754,6 @@ button:disabled {
 .card2-body {
   flex: 1;
   min-width: 0;
-  /* Centres a short statement against the two-button stack beside it. */
-  align-self: center;
   padding: 0.3rem 0;
 }
 
@@ -768,7 +768,6 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 0;
-  align-self: center;
 }
 
 @media (min-width: 640px) {
