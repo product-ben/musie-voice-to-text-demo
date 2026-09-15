@@ -4,7 +4,9 @@ import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 
 export default tseslint.config(
-  { ignores: ["dist", "public/pcm-worklet.js"] },
+  // reference/ is the vendored Musy design system — consumed, never amended,
+  // so it is not held to this app's lint rules.
+  { ignores: ["dist", "reference", "public/pcm-worklet.js"] },
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

@@ -199,6 +199,59 @@ on every render, so combining, reordering and deleting renumber it immediately r
 than leaving a stale field behind. `createdAt` is stored, set when the statement was
 finalised; combining keeps the surviving statement's timestamp.
 
+## The same component, in the Musy design system (`#/musie`)
+
+A third page renders the **same** `TranscriptWorkspace` — same hooks, same
+behaviour, same `onSentenceFinal` — dressed entirely in the Musy design system
+vendored at `reference/musie_260915`. Nothing about the other two pages changed.
+
+Every visible part is a *released* component, imported and passed props, never
+recreated from its markup — which is the one rule the package's own handoff
+doc sets:
+
+| Part of the workspace | Musy component |
+| --- | --- |
+| Record / stop control | **Voice Note** — controlled, and it never calls `getUserMedia`, which is exactly this app's split |
+| A finalised statement | **Content Box**, with a real heading |
+| Waiting for words | **Content Box** `outline="dashed"` — the system's own reading of *provisional / awaiting content* (token gap G2) |
+| Errors, warnings, undo | **Message**, each with an explicit `live` region |
+| Countdown, stop reason | **Badge** |
+| Drag / edit / delete | **Icon Button** at `--target-primary` |
+| Save, cancel, undo | **CTA Button** |
+| Data layer, theme | **Switch** |
+
+The only CSS written for the page is `src/musie/musie.css` — the arrangement
+*between* components, which no design system ships. It follows the rule the
+system sets itself: every declaration resolves to a Layer 1 token or to
+arithmetic over one, with no literal colour, space or motion value.
+
+**Theme.** `data-theme` goes on the page's own wrapper rather than `<html>`.
+Foundations declares every token on `:root, [data-theme]` precisely so a nested
+subtree recomputes `light-dark()` (§12), and scoping it this way keeps
+`color-scheme: dark` off the other two pages. Same attribute, same
+`musy-theme` storage key, narrower scope.
+
+### Two things found in the package while building this
+
+Neither was worked around by editing the design system — it is consumed, never
+amended — so both are reported here instead.
+
+1. **`Field` cannot show existing text.** It passes `value`, `defaultValue` and
+   `onValueChange` to base-ui's `Field.Root`, which has none of them (checked
+   against `@base-ui/react` 1.7.0, the version `package.json` declares). They
+   land on a `<div>` and are ignored, so a controlled or pre-filled field is
+   silently empty. The statement editor therefore composes on **Field's parts**
+   (`.musy-field__*`) — which is the system's own sanctioned pattern, stated in
+   Voice Note: *"composed on Field's parts (§7.16) … only the control surface
+   is new."*
+2. **`Lightbox` passes `dismissible` to `Dialog.Root`**, which does not accept
+   it. Not used here; components are imported per file rather than through
+   `components/index.ts` so the barrel does not drag it into the build.
+
+Only `tokens/` and `components/` are committed — the folders the build imports.
+The package's `docs/`, proof pages and screenshots stay local, so deploying this
+page does not publish them to a public repo.
+
 ## Live demo
 
 The demo needs **HTTPS**: browsers refuse `getUserMedia` on insecure origins, so the

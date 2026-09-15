@@ -7,8 +7,10 @@
     "jsx": "react-jsx",
     "types": ["vite/client"],
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    // Unused locals and parameters are checked by ESLint instead, which can be
+    // scoped. tsc cannot: it type-checks every file it is transitively
+    // imported into, and the design system under reference/ is third-party
+    // source that we consume and must not amend.
     "noFallthroughCasesInSwitch": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,

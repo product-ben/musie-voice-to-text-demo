@@ -8,3 +8,12 @@ dist
 .env
 .env.*
 !.env.example
+
+# The Musy design system is vendored for the #/musie page. Only the two folders
+# the build actually imports are committed, so deploying the page does not also
+# publish the internal docs, proof pages and screenshots to a public repo.
+reference/*
+!reference/musie_260915/
+reference/musie_260915/*
+!reference/musie_260915/tokens/
+!reference/musie_260915/components/

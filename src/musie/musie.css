@@ -1,0 +1,242 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE TRANSCRIPT WORKSPACE, IN MUSY
+   ═══════════════════════════════════════════════════════════════════════════
+   Layout glue only. Every component on this page is a released Musy component;
+   what is left is the arrangement between them, which no design system can
+   ship for you.
+
+   It follows the same rule the system sets itself in musy-components.css:
+   every declaration resolves to a Layer 1 token or to arithmetic over one.
+   There is no literal colour, no literal space, no literal motion value here.
+   The only bare numbers are geometric identities (0, 50%, 100%) and unitless
+   multipliers inside calc() over a token.
+
+   Naming mirrors the system's: .musie-<block>[__<part>][--<variant>], with the
+   product spelling (Musie) rather than the package's internal musy-*, so it is
+   never mistaken for a system file.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* App-shell requirement from the system's install notes: iOS 26+ Safari needs
+   a positioned body for base-ui's backdrops. Static is the default, so this
+   changes nothing that is laid out today. */
+body {
+  position: relative;
+}
+
+/* ── Page ─────────────────────────────────────────────────────────────────
+   `isolation: isolate` is the second app-shell requirement: base-ui portals
+   its tooltips, and this keeps them clear of any local stacking context. The
+   wrapper also carries data-theme, so the whole subtree recomputes. */
+.musie-page {
+  isolation: isolate;
+  background-color: var(--surface);
+  color: var(--on-surface);
+  font-family: var(--font-text);
+  padding: var(--space-inset-card);
+  border-radius: var(--radius-panel);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap-group);
+}
+
+.musie-page__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-gap-stack);
+}
+
+.musie-page__title {
+  margin: 0;
+  color: var(--on-surface);
+  text-wrap: var(--text-wrap-heading);
+  max-width: var(--measure-heading);
+}
+
+/* ── Stacks ───────────────────────────────────────────────────────────────
+   Two gaps, and the difference between them is the grouping rule from
+   foundations §5: things that belong together get the stack gap, separate
+   groups get double it. */
+.musie-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap-stack);
+}
+
+.musie-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap-group);
+}
+
+.musie-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-gap-stack);
+}
+
+/* ── Transcript ───────────────────────────────────────────────────────────
+   The list is a real <ol>: the statements are a sequence, and the count and
+   position are carried to assistive tech rather than drawn. */
+.musie-transcript {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap-stack);
+}
+
+/* The dragged card stays in place and dims, so the list never reflows and the
+   positions measured at drag start stay valid. */
+.musie-card--dragging {
+  opacity: 0.4;
+}
+
+.musie-card--merge-target {
+  border-color: var(--interactive-primary-border);
+  background-color: var(--interactive-primary-subtle);
+}
+
+.musie-card__text {
+  margin: 0;
+  color: var(--on-surface);
+  text-wrap: var(--text-wrap-body);
+  max-width: var(--measure-body);
+  hyphens: var(--text-hyphens);
+  overflow-wrap: break-word;
+}
+
+.musie-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-gap-inline);
+}
+
+/* Pushes Delete away from Edit: they are not the same kind of action, and a
+   thumb reaching for one must not find the other. */
+.musie-card__spacer {
+  flex: 1 1 var(--sp-1);
+}
+
+.musie-card__handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.musie-card__handle:active {
+  cursor: grabbing;
+}
+
+/* Where the dragged statement will land. Thick rather than hairline because it
+   has to read as a target at arm's length on a phone. */
+.musie-drop {
+  height: var(--border-width-thick);
+  border-radius: var(--radius-full);
+  background-color: var(--interactive-primary);
+}
+
+/* Follows the finger, so the gesture has something to hold on to. */
+.musie-drag-preview {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  translate: var(--space-gap-inline) var(--space-gap-inline);
+  pointer-events: none;
+  max-width: var(--measure-heading);
+  padding: var(--space-inset-control);
+  border-radius: var(--radius-card);
+  background-color: var(--surface-overlay);
+  color: var(--on-surface);
+  box-shadow: var(--elevation-2);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+}
+
+/* ── Waiting ──────────────────────────────────────────────────────────────
+   Three dots inside the dashed box, for the seconds before the first words
+   arrive. Dashed is the system's own reading of "provisional / awaiting
+   content" (token gap G2), which is exactly what this box is. */
+.musie-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-gap-inline);
+}
+
+.musie-dots span {
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--radius-full);
+  background-color: var(--on-surface-muted);
+  animation: musie-waiting var(--motion-duration-slower) var(--motion-ease-standard) infinite;
+}
+
+.musie-dots span:nth-child(2) { animation-delay: var(--motion-duration-instant); }
+.musie-dots span:nth-child(3) { animation-delay: var(--motion-duration-fast); }
+
+@keyframes musie-waiting {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+
+/* Layer 1 collapses every duration to 1ms under reduced motion, which would
+   strobe rather than settle — so the pulse is dropped outright, the same call
+   the system makes for Voice Note's recording dot. */
+@media (prefers-reduced-motion: reduce) {
+  .musie-dots span { animation: none; opacity: 0.55; }
+}
+
+/* ── Microphone level ─────────────────────────────────────────────────────
+   Voice Note's dot says "recording"; this says "and it can hear you", which
+   is the difference between a dead microphone and a quiet room. Decorative:
+   the state itself is announced by Voice Note's own status region. */
+.musie-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sp-1) / 2);
+  height: var(--icon-size-lg);
+}
+
+.musie-meter span {
+  width: var(--border-width-thick);
+  height: var(--icon-size-lg);
+  border-radius: var(--radius-full);
+  background-color: var(--border-strong);
+  transform-origin: center;
+  transition: transform var(--motion-toggle), background-color var(--motion-toggle);
+}
+
+.musie-meter[data-speaking] span {
+  background-color: var(--interactive-primary);
+}
+
+/* ── Data layer ───────────────────────────────────────────────────────────
+   A code block is the one thing on this page the system has no component for:
+   it is neither prose nor a list, and Content List would lose the shape that
+   makes raw state worth showing. A permitted custom pattern, token-only. */
+.musie-json {
+  margin: 0;
+  overflow-x: auto;
+  padding: var(--space-inset-card);
+  border-radius: var(--radius-card);
+  background-color: var(--surface-sunken);
+  color: var(--on-surface-muted);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  tab-size: 2;
+}
+
+.musie-json__key    { color: var(--accent-2-text); }
+.musie-json__string { color: var(--accent-1-text); }
+.musie-json__number { color: var(--accent-3-text); }
+
+/* Foundations §8: an overflow container with focusable children must keep the
+   focus ring's clearance. Nothing here is focusable today; the padding is
+   already card inset, which clears it, and this states why. */
+.musie-json:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}

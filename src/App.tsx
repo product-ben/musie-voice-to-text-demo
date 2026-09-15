@@ -2,6 +2,7 @@ import { useHashRoute } from "./useHashRoute";
 import { Nav } from "./components/Nav";
 import { Home } from "./pages/Home";
 import { Lab } from "./pages/Lab";
+import { Musie } from "./pages/Musie";
 import { Toast } from "./components/Toast";
 import { HowItWorks } from "./components/HowItWorks";
 import { PrivacyNote } from "./components/PrivacyNote";
@@ -12,9 +13,17 @@ export function App() {
   return (
     <main>
       <Nav route={route} />
-      {route === "/lab" ? <Lab /> : <Home />}
-      <HowItWorks />
-      <PrivacyNote />
+      {route === "/musie" ? (
+        // The design-system page stands on its own: the explainers below are
+        // written in this app's voice and styling, and would undercut it.
+        <Musie />
+      ) : (
+        <>
+          {route === "/lab" ? <Lab /> : <Home />}
+          <HowItWorks />
+          <PrivacyNote />
+        </>
+      )}
       <Toast />
     </main>
   );

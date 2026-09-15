@@ -1,6 +1,7 @@
 const PAGES = [
   { href: "#/", label: "Demo" },
   { href: "#/lab", label: "Segmentation lab" },
+  { href: "#/musie", label: "Musy design system" },
 ];
 
 export function Nav({ route }: { route: string }) {
