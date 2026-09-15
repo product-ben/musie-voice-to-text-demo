@@ -63,14 +63,28 @@ public or production — that needs a small server minting short-lived `ek_` tok
 Step 2 of the wizard picks the model. They differ in *when* text appears, not just in
 quality. Measured against the live API on 15 September 2026 with the same 10 s of German:
 
-| | `gpt-4o-transcribe` | `gpt-live-transcribe` |
+| | `gpt-live-transcribe` **(default)** | `gpt-4o-transcribe` |
 | --- | --- | --- |
-| Wizard label | After each pause | Live while speaking |
-| First word appears | ~0.3 s **after you stop** | ~0.5–1 s behind your voice, **while speaking** |
-| How text lands | whole sentence at once | word by word |
-| Sentence breaks decided by | OpenAI (server VAD) | the browser |
-| Semantic splitting | available | **not available** |
-| Price | $0.006/min | $0.017/min |
+| Wizard label | Live while speaking | After each pause |
+| First word appears | ~0.5–1 s behind your voice, **while speaking** | ~0.3 s **after you stop** |
+| How text lands | word by word | whole sentence at once |
+| Sentence breaks decided by | the browser | OpenAI (server VAD) |
+| Semantic splitting | **not available** | available |
+| Price | $0.017/min | $0.006/min |
+| Status | current | **retires 26 Feb 2027** |
+
+**The streaming model is the default.** The post-turn model sends nothing at all
+while you are talking, so on a fresh page it reads as the demo having failed rather
+than as a deliberate trade-off. It is still one click away in step 2, where the
+wizard also names its retirement date.
+
+Choices made in the wizard — model, language, splitting mode — are remembered in
+`sessionStorage` for the life of the tab. They used to be plain component state, so
+a reload silently reset the model to the default and streaming appeared to break.
+
+Whichever model is chosen, the grey box appears as soon as speech is heard —
+with three pulsing dots until the first words arrive — so there is always something
+on screen showing that a statement is being worked on.
 
 Measured traces, same audio:
 
@@ -254,8 +268,11 @@ turned out to be wrong in one place.
   despite appearing in the model documentation's endpoint table.
 - **Auth:** subprotocols `["realtime", "openai-insecure-api-key.<KEY>"]`. The beta
   `openai-beta.realtime-v1` subprotocol is gone in the GA API.
-- **Model:** `gpt-4o-transcribe`. Its model page claims realtime transcription is
-  "Not supported" — **this is incorrect**; the live API accepts it with server VAD.
+- **Models:** each one's capabilities live in `MODELS` in `src/config.ts` — whether
+  OpenAI's VAD may end a turn, whether the language hint is `language` or `languages`,
+  whether `delay` applies — so adding one is a config change, not a code change.
+  `gpt-4o-transcribe`'s model page claims realtime transcription is "Not supported" —
+  **this is incorrect**; the live API accepts it with server VAD.
 - **Session payload** — the GA shape, not the beta `transcription_session.update`:
 
 ```json
@@ -272,15 +289,30 @@ turned out to be wrong in one place.
 - **Events:** `conversation.item.input_audio_transcription.delta` → interim text;
   `.completed` → finalised sentence; `.failed` → error.
 
-### Why not `gpt-live-transcribe`?
+### Turn detection differs by model
 
-It is the newer streaming model, but it **rejects turn detection outright**:
+`gpt-live-transcribe` **rejects turn detection outright**:
 
 > `Turn detection is not supported for this transcription model.`
 
-Using it would mean detecting pauses in the browser and committing turns manually. It
-is also nearly three times the price. `gpt-4o-transcribe` supports server VAD, so
-sentence-splitting is handled for us. Swap `MODEL` in `src/config.ts` if that changes.
+So choosing it moves pause detection into the browser: `CLIENT_SILENCE_MS` of quiet
+audio after speech sends `input_audio_buffer.commit`. That is what `serverVad: false`
+in the `MODELS` table selects. `gpt-4o-transcribe` sets `serverVad: true` and lets
+OpenAI decide, which is why the semantic splitting options only appear for it.
+
+### Models not wired up here
+
+OpenAI deprecated `whisper-1`, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe` and
+`gpt-4o-transcribe-diarize` on 26 August 2026; they leave the API on 26 February 2027.
+The named replacements are `gpt-transcribe` (post-turn, reports the detected language)
+and `gpt-realtime-whisper` (streaming), alongside `gpt-live-transcribe`.
+
+Neither has been added, because neither could be tested here — that needs a live key,
+and adding an untested model to the wizard risks a red banner instead of a transcript.
+Adding one is an entry in `MODELS`; the documentation says both take `turn_detection:
+null`, so both would use the browser's own pause detection like `gpt-live-transcribe`
+does. **Verify the language field (`language` vs `languages`) against a real session
+before shipping either** — sending the wrong one is rejected outright.
 
 ### Auto-detect
 
@@ -293,16 +325,17 @@ Language auto-detection works for transcription, but the model does not report
 
 ## Cost
 
-`gpt-4o-transcribe` is **$0.006 per minute** of audio (published price, 14 Sep 2026).
+Published prices, 14 Sep 2026: `gpt-live-transcribe` (the default) **$0.017 per
+minute** of audio, `gpt-4o-transcribe` **$0.006 per minute** — about 2.8× cheaper,
+which is the trade-off for text that only arrives after each pause.
 
-| Usage | Cost |
-| --- | --- |
-| One 60-second session | **~$0.006** (0.6 ¢) |
-| 100 test sessions | ~$0.60 |
-| An hour of continuous speech | ~$0.36 |
+| Usage | Default (`gpt-live-transcribe`) | `gpt-4o-transcribe` |
+| --- | --- | --- |
+| One 60-second session | **~$0.017** (1.7 ¢) | ~$0.006 (0.6 ¢) |
+| 100 test sessions | ~$1.70 | ~$0.60 |
+| An hour of continuous speech | ~$1.02 | ~$0.36 |
 
-Billing follows audio streamed, so stopping early costs proportionally less. For
-comparison, `gpt-live-transcribe` is $0.017/min — about 2.8× more.
+Billing follows audio streamed, so stopping early costs proportionally less.
 
 ### Rate limits matter more than price here
 

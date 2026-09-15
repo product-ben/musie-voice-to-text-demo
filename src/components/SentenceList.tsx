@@ -8,6 +8,10 @@ import type { Sentence } from "../transcript/types";
 type Props = {
   sentences: Sentence[];
   interim: string;
+  /** A statement is on its way: show the box before any words arrive. */
+  pending: boolean;
+  /** Where the next statement will land, so the box waits in the right place. */
+  pendingIndex?: number;
   /** Editing is only offered once recording has stopped. */
   editable: boolean;
   onEdit: (id: string, text: string) => void;
@@ -19,7 +23,8 @@ type Props = {
 };
 
 export function SentenceList({
-  sentences, interim, editable, onEdit, onCombine, onMove, onDelete, variant = "initial",
+  sentences, interim, pending, pendingIndex, editable, onEdit, onCombine, onMove, onDelete,
+  variant = "initial",
 }: Props) {
   const improved = variant === "improved";
 
@@ -42,7 +47,7 @@ export function SentenceList({
 
   const drag = useDragList({ onCombine: combineInOrder, onMove });
 
-  if (sentences.length === 0 && !interim) {
+  if (sentences.length === 0 && !interim && !pending) {
     return <p className="placeholder">Finished statements will appear here, one block each.</p>;
   }
 
@@ -84,6 +89,19 @@ export function SentenceList({
 
   const dragged = sentences.find((s) => s.id === drag.draggingId);
 
+  /** Drawn inline at the insertion point rather than always at the end. */
+  const at = Math.min(pendingIndex ?? sentences.length, sentences.length);
+  const waiting = (interim || pending) && !drag.draggingId && (
+    <p className={`sentence-interim${interim ? "" : " is-waiting"}`}>
+      {interim || (
+        // Three dots, so the box is visibly waiting rather than empty.
+        <span className="waiting-dots" aria-label="Listening">
+          <i /><i /><i />
+        </span>
+      )}
+    </p>
+  );
+
   return (
     <div
       className={[
@@ -98,6 +116,8 @@ export function SentenceList({
           {improved && " On touch, hold briefly to drag from anywhere on a card."}
         </p>
       )}
+
+      {at === 0 && waiting}
 
       {sentences.map((sentence, index) => {
         const target = drag.dropTarget?.id === sentence.id ? drag.dropTarget.mode : null;
@@ -145,11 +165,10 @@ export function SentenceList({
               />
             )}
             {target === "after" && <div className="drop-line" aria-hidden="true" />}
+            {at === index + 1 && waiting}
           </div>
         );
       })}
-
-      {interim && <p className="sentence-interim">{interim}</p>}
 
       {/* Follows the finger so the gesture has something to hold on to. */}
       {dragged && drag.pointer && (

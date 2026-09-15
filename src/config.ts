@@ -6,29 +6,60 @@
 export const REALTIME_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 
 /**
- * The two transcription models differ in *when* text arrives, not just quality.
- * Measured against the live API on 15 Sep 2026 with the same 10 s of German:
+ * The transcription models differ in *when* text arrives, not just in quality,
+ * so each one carries the facts the rest of the code needs rather than being
+ * compared against a string literal in four places.
  *
- *   gpt-4o-transcribe    deltas only after the turn is committed, so the whole
- *                        sentence lands ~0.3 s after you stop talking.
- *                        Supports server-side VAD. $0.006/min.
- *
- *   gpt-live-transcribe  deltas stream ~0.5-1 s behind your voice, while you
- *                        are still speaking. Rejects turn detection entirely,
- *                        so sentence breaks must be decided in the browser.
- *                        $0.017/min.
+ * Measured against the live API on 15 Sep 2026 with the same 10 s of German.
  */
-export type TranscriptionModel = "gpt-4o-transcribe" | "gpt-live-transcribe";
+export type TranscriptionModel = "gpt-live-transcribe" | "gpt-4o-transcribe";
 
-export const MODEL_OPTIONS: { value: TranscriptionModel; label: string }[] = [
-  { value: "gpt-4o-transcribe", label: "After each pause" },
-  { value: "gpt-live-transcribe", label: "Live while speaking" },
-];
+export type ModelSpec = {
+  label: string;
+  /** Whether OpenAI's own VAD may end a turn. If not, the browser commits. */
+  serverVad: boolean;
+  /** GA is inconsistent: newer models take `languages: []`, older `language: ""`. */
+  languageField: "language" | "languages";
+  /** Latency/accuracy trade-off. Streaming models only. */
+  delay?: "minimal" | "low" | "medium" | "high" | "xhigh";
+  /** Retirement date, when OpenAI has announced one. */
+  retires?: string;
+  note: string;
+};
 
-export const DEFAULT_MODEL: TranscriptionModel = "gpt-4o-transcribe";
+export const MODELS: Record<TranscriptionModel, ModelSpec> = {
+  "gpt-live-transcribe": {
+    label: "Live while speaking",
+    serverVad: false,
+    languageField: "languages",
+    delay: "low",
+    note:
+      "gpt-live-transcribe — words appear about a second behind your voice, while you are still " +
+      "speaking. It has no server-side pause detection, so the browser decides where sentences " +
+      "end. $0.017 per minute.",
+  },
+  "gpt-4o-transcribe": {
+    label: "After each pause",
+    serverVad: true,
+    languageField: "language",
+    retires: "26 February 2027",
+    note:
+      "gpt-4o-transcribe — nothing appears while you talk. OpenAI's VAD closes the turn on your " +
+      "pause, then the whole sentence lands at once, about 0.3 s later. OpenAI decides where " +
+      "sentences end, including the semantic option below. $0.006 per minute.",
+  },
+};
 
-/** Latency/accuracy trade-off, gpt-live-transcribe only. */
-export const LIVE_DELAY = "low";
+/** Order here is the order of the buttons in the wizard. */
+export const MODEL_OPTIONS: { value: TranscriptionModel; label: string }[] = (
+  Object.keys(MODELS) as TranscriptionModel[]
+).map((value) => ({ value, label: MODELS[value].label }));
+
+/**
+ * Streaming by default. The post-turn model shows nothing at all until you stop
+ * talking, which reads as the demo being broken rather than as a design choice.
+ */
+export const DEFAULT_MODEL: TranscriptionModel = "gpt-live-transcribe";
 
 /**
  * gpt-live-transcribe has no server VAD, so the browser decides where a

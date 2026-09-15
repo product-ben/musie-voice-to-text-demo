@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CLIENT_SILENCE_LEVEL,
   CLIENT_SILENCE_MS,
+  MODELS,
   SESSION_SECONDS,
   type LanguageChoice,
   type SegmentationMode,
@@ -23,6 +24,12 @@ export function useTranscription() {
   const [status, setStatus] = useState<Status>("idle");
   const list = useSentences();
   const [interim, setInterim] = useState("");
+  /**
+   * True from the moment speech is heard until the statement lands, so the
+   * grey box appears straight away. On a post-turn model there is otherwise
+   * nothing on screen at all while you talk, which reads as a broken demo.
+   */
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [stopReason, setStopReason] = useState<StopReason>(null);
@@ -46,6 +53,7 @@ export function useTranscription() {
     connection.current?.close();
     connection.current = null;
     setInterim("");
+    setPending(false);
     setLevel(0);
     setSpeaking(false);
     setStatus((previous) => {
@@ -71,6 +79,7 @@ export function useTranscription() {
       if (!options?.keepExisting) list.reset();
       list.beginSession();
       setInterim("");
+      setPending(false);
       setSecondsLeft(SESSION_SECONDS);
       deadline.current = Date.now() + SESSION_SECONDS * 1000;
       heardSpeech.current = false;
@@ -84,12 +93,16 @@ export function useTranscription() {
             break;
           case "speech":
             setSpeaking(event.active);
+            // Speech stopping does not clear it: the words are still coming.
+            if (event.active) setPending(true);
             break;
           case "interim":
             setInterim(event.text);
+            setPending(true);
             break;
           case "final": {
             setInterim("");
+            setPending(false);
             // One turn can yield several sentences in punctuation mode.
             // Hesitation sounds are cleaned off as the statement becomes a
             // card; the live grey text still shows what was actually said.
@@ -105,6 +118,9 @@ export function useTranscription() {
           // Non-fatal: one sentence was lost, recording continues.
           case "warning":
             setWarning(event.message);
+            // That turn will never arrive, so stop waiting for it.
+            setInterim("");
+            setPending(false);
             break;
           case "error":
             setError(event.message);
@@ -113,9 +129,9 @@ export function useTranscription() {
         }
       });
 
-      // gpt-live-transcribe has no server VAD, so the browser decides where a
-      // sentence ends and commits the turn itself.
-      const browserDecidesTurns = model === "gpt-live-transcribe";
+      // A model without server VAD leaves the browser to decide where a
+      // sentence ends and to commit the turn itself.
+      const browserDecidesTurns = !MODELS[model].serverVad;
 
       try {
         recorder.current = await startRecorder((chunk, chunkLevel) => {
@@ -129,6 +145,7 @@ export function useTranscription() {
           if (loud) {
             heardSpeech.current = true;
             silentSince.current = null;
+            setPending(true);
             return;
           }
           if (!heardSpeech.current) return;
@@ -179,6 +196,7 @@ export function useTranscription() {
   return {
     status,
     sentences: list.sentences,
+    sessionCount: list.sessionCount,
     editSentence: list.edit,
     combineSentences: list.combine,
     moveSentence: list.move,
@@ -187,6 +205,7 @@ export function useTranscription() {
     undo: list.undo,
     dismissUndo: list.dismissUndo,
     interim,
+    pending,
     error,
     warning,
     stopReason,

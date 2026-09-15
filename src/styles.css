@@ -120,6 +120,11 @@ button:disabled {
   line-height: 1.5;
 }
 
+/* A model that is on its way out — visible, but not an error. */
+.warn-note {
+  color: #8a6100;
+}
+
 .error {
   background: #fdecea;
   border: 1px solid #f5c2c0;
@@ -290,6 +295,42 @@ button:disabled {
   border-left: 3px dashed #ccc;
   margin: 0;
   line-height: 1.5;
+}
+
+/*
+ * The same box before any words have arrived. A post-turn model sends nothing
+ * at all while you talk, so without this there is no sign the statement is
+ * being worked on — which reads as the demo having failed.
+ */
+.sentence-interim.is-waiting {
+  min-height: 1.5em;
+}
+
+.waiting-dots {
+  display: inline-flex;
+  gap: 0.28rem;
+  align-items: center;
+  height: 1.5em;
+}
+
+.waiting-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #bbb;
+  animation: waiting-pulse 1.2s ease-in-out infinite;
+}
+
+.waiting-dots i:nth-child(2) { animation-delay: 0.15s; }
+.waiting-dots i:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes waiting-pulse {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiting-dots i { animation: none; opacity: 0.55; }
 }
 
 .placeholder {

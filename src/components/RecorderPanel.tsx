@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   DEFAULT_MODEL,
   LANGUAGE_OPTIONS,
+  MODELS,
   MODEL_OPTIONS,
   SEGMENTATION_OPTIONS,
   SESSION_SECONDS,
@@ -21,24 +22,46 @@ import { MicCheck } from "./MicCheck";
 import { Tabs } from "./Tabs";
 import { DataLayerView } from "./DataLayerView";
 
-// sessionStorage, not localStorage: the key dies when the tab closes.
+// sessionStorage, not localStorage: everything here dies when the tab closes.
 const KEY_STORAGE = "openai-api-key";
+const MODEL_STORAGE = "transcription-model";
+const LANGUAGE_STORAGE = "transcription-language";
+const SEGMENTATION_STORAGE = "transcription-segmentation";
+
+/**
+ * Reads a remembered choice, falling back when it is missing or no longer one
+ * of the options — otherwise a retired model would stick around for the life
+ * of the tab. Choices were not remembered at all before, so a reload silently
+ * reset the model to the default and streaming appeared to have broken.
+ */
+function remembered<T extends string>(
+  key: string,
+  options: readonly { value: string }[],
+  fallback: T,
+): T {
+  const stored = sessionStorage.getItem(key);
+  return options.some((option) => option.value === stored) ? (stored as T) : fallback;
+}
 
 type Props = { showSegmentation?: boolean };
 
 export function RecorderPanel({ showSegmentation = false }: Props) {
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem(KEY_STORAGE) ?? "");
-  const [model, setModel] = useState<TranscriptionModel>(DEFAULT_MODEL);
-  const [language, setLanguage] = useState<LanguageChoice>("de");
-  const [segmentation, setSegmentation] = useState<SegmentationMode>(
-    showSegmentation ? "punctuation" : "silence",
+  const [model, setModel] = useState<TranscriptionModel>(() =>
+    remembered(MODEL_STORAGE, MODEL_OPTIONS, DEFAULT_MODEL),
+  );
+  const [language, setLanguage] = useState<LanguageChoice>(() =>
+    remembered(LANGUAGE_STORAGE, LANGUAGE_OPTIONS, "de"),
+  );
+  const [segmentation, setSegmentation] = useState<SegmentationMode>(() =>
+    remembered(SEGMENTATION_STORAGE, SEGMENTATION_OPTIONS, showSegmentation ? "punctuation" : "silence"),
   );
   // Start on the settings step if a key is already in this tab.
   const [step, setStep] = useState(() => (sessionStorage.getItem(KEY_STORAGE) ? 2 : 1));
   const [tab, setTab] = useState<"improved" | "initial">("improved");
 
   const {
-    status, sentences, interim, error, warning, stopReason,
+    status, sentences, sessionCount, interim, pending, error, warning, stopReason,
     level, speaking, secondsLeft, start, stop,
     editSentence, combineSentences, moveSentence, deleteSentence,
     undoLabel, undo, dismissUndo,
@@ -70,10 +93,10 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
     setStep(1);
   }
 
-  const isLive = model === "gpt-live-transcribe";
-  // Semantic splitting is server-side VAD, which gpt-live-transcribe rejects —
+  // Semantic splitting is server-side VAD, which a streaming model rejects —
   // drop that option, and relabel the rest, since breaks come from a browser
   // pause rather than a classifier.
+  const isLive = !MODELS[model].serverVad;
   const segmentationOptions = SEGMENTATION_OPTIONS.filter(
     (option) => !(isLive && option.value === "semantic"),
   ).map((option) =>
@@ -84,7 +107,18 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
 
   function chooseModel(next: TranscriptionModel) {
     setModel(next);
-    if (next === "gpt-live-transcribe" && segmentation === "semantic") setSegmentation("punctuation");
+    sessionStorage.setItem(MODEL_STORAGE, next);
+    if (!MODELS[next].serverVad && segmentation === "semantic") chooseSegmentation("punctuation");
+  }
+
+  function chooseLanguage(next: LanguageChoice) {
+    setLanguage(next);
+    sessionStorage.setItem(LANGUAGE_STORAGE, next);
+  }
+
+  function chooseSegmentation(next: SegmentationMode) {
+    setSegmentation(next);
+    sessionStorage.setItem(SEGMENTATION_STORAGE, next);
   }
 
   const stateOf = (index: number): StepState =>
@@ -142,7 +176,13 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
           onChange={chooseModel}
           disabled={isRunning}
         />
-        <p className="note">{describeModel(model)}</p>
+        <p className="note">{MODELS[model].note}</p>
+        {MODELS[model].retires && (
+          <p className="note warn-note">
+            OpenAI is retiring this model on {MODELS[model].retires}. Its replacements are{" "}
+            <code>gpt-live-transcribe</code> and <code>gpt-transcribe</code>.
+          </p>
+        )}
         <button type="button" className="primary" onClick={() => setStep(3)}>
           Continue
         </button>
@@ -161,7 +201,7 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
           label="Language"
           options={LANGUAGE_OPTIONS}
           value={language}
-          onChange={setLanguage}
+          onChange={chooseLanguage}
           disabled={isRunning}
         />
 
@@ -172,7 +212,7 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
               label="Sentence splitting"
               options={segmentationOptions}
               value={segmentation}
-              onChange={setSegmentation}
+              onChange={chooseSegmentation}
               disabled={isRunning}
             />
             <p className="note">{describe(segmentation, isLive)}</p>
@@ -255,6 +295,10 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
         <SentenceList
           sentences={sentences}
           interim={interim}
+          pending={pending}
+          // Improved mode inserts each session's statements as a block, so the
+          // waiting box belongs at that cursor, not at the end of the list.
+          pendingIndex={improvedTab ? sessionCount : undefined}
           // Editing is offered only once the recording has finished.
           editable={!isRunning}
           variant={improvedTab ? "improved" : "initial"}
@@ -275,15 +319,6 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
       </Step>
     </div>
   );
-}
-
-function describeModel(model: TranscriptionModel): string {
-  return model === "gpt-live-transcribe"
-    ? "gpt-live-transcribe — words appear about a second behind your voice, while you are still " +
-        "speaking. It has no server-side pause detection, so the browser decides where sentences " +
-        "end. $0.017 per minute."
-    : "gpt-4o-transcribe — the sentence appears about 0.3 s after you stop talking, all at once. " +
-        "OpenAI decides where sentences end, including the semantic option below. $0.006 per minute.";
 }
 
 function describe(mode: SegmentationMode, isLive: boolean): string {

@@ -1,5 +1,5 @@
 import {
-  LIVE_DELAY,
+  MODELS,
   PREFIX_PADDING_MS,
   REALTIME_URL,
   SAMPLE_RATE,
@@ -185,13 +185,16 @@ function buildSessionUpdate(
   language: LanguageChoice,
   segmentation: SegmentationMode,
 ) {
-  const live = model === "gpt-live-transcribe";
+  const spec = MODELS[model];
 
-  // The two models disagree on the language field: gpt-live-transcribe takes a
-  // `languages` array, the other a singular `language`. Sending both is rejected.
-  const transcription = live
-    ? { model, delay: LIVE_DELAY, ...(language === "auto" ? {} : { languages: [language] }) }
-    : { model, ...(language === "auto" ? {} : { language }) };
+  // The models disagree on the language field: some take a `languages` array,
+  // others a singular `language`. Sending both is rejected.
+  const languageHint =
+    language === "auto"
+      ? {}
+      : spec.languageField === "languages"
+        ? { languages: [language] }
+        : { language };
 
   return {
     type: "session.update",
@@ -200,10 +203,10 @@ function buildSessionUpdate(
       audio: {
         input: {
           format: { type: "audio/pcm", rate: SAMPLE_RATE },
-          transcription,
-          // gpt-live-transcribe rejects turn detection outright, so the browser
-          // commits turns instead. See useTranscription.
-          turn_detection: live ? null : buildTurnDetection(segmentation),
+          transcription: { model, ...(spec.delay ? { delay: spec.delay } : {}), ...languageHint },
+          // A model without server VAD rejects turn detection outright, so the
+          // browser commits turns instead. See useTranscription.
+          turn_detection: spec.serverVad ? buildTurnDetection(segmentation) : null,
         },
       },
     },

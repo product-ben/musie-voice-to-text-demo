@@ -63,18 +63,21 @@ export function useSentences() {
    * within it stay in the order they were spoken.
    */
   const sessionStart = useRef(0);
+  /** The same number as a render value, so the UI can show what is coming next. */
+  const [sessionCount, setSessionCount] = useState(0);
 
   const beginSession = useCallback(() => {
     sessionStart.current = 0;
+    setSessionCount(0);
   }, []);
 
   const appendToSession = useCallback((texts: string[], language: string) => {
-    setSentences((previous) => {
-      const fresh = texts.map((text) => ({ id: newId(), text, language }));
-      const at = sessionStart.current;
-      sessionStart.current = at + fresh.length;
-      return [...previous.slice(0, at), ...fresh, ...previous.slice(at)];
-    });
+    // Ids and the cursor are computed out here: a state updater may run twice.
+    const fresh = texts.map((text) => ({ id: newId(), text, language }));
+    const at = sessionStart.current;
+    sessionStart.current = at + fresh.length;
+    setSessionCount(sessionStart.current);
+    setSentences((previous) => [...previous.slice(0, at), ...fresh, ...previous.slice(at)]);
   }, []);
 
   const reset = useCallback(() => {
@@ -150,6 +153,7 @@ export function useSentences() {
 
   return {
     sentences,
+    sessionCount,
     undoLabel: undoable?.label ?? null,
     append,
     appendToSession,
