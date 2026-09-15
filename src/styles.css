@@ -779,6 +779,9 @@ button:disabled {
 }
 
 .tool {
+  /* flex: none, or the row/column container shrinks these below a
+     comfortable touch target. */
+  flex: none;
   width: 44px;
   height: 38px;
   display: grid;
