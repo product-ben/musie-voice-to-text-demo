@@ -238,6 +238,26 @@ export function useDragList({ onCombine, onMove }: Options) {
     onPointerCancel: finish,
   };
 
+  /**
+   * The handle sits inside the card, and both listen for pointer events, so
+   * without stopping propagation the card would re-arm the same gesture in
+   * hold-to-drag mode and immediately cancel the handle's immediate drag.
+   */
+  const containedShared = {
+    onPointerMove: (event: React.PointerEvent) => {
+      event.stopPropagation();
+      onPointerMove(event);
+    },
+    onPointerUp: (event: React.PointerEvent) => {
+      event.stopPropagation();
+      onPointerUp();
+    },
+    onPointerCancel: (event: React.PointerEvent) => {
+      event.stopPropagation();
+      finish();
+    },
+  };
+
   return {
     draggingId,
     dropTarget,
@@ -246,8 +266,11 @@ export function useDragList({ onCombine, onMove }: Options) {
     consumeDrag,
     /** For the handle icon: starts dragging immediately. */
     handleProps: (id: string) => ({
-      onPointerDown: (event: React.PointerEvent) => startPress(id, event, false),
-      ...shared,
+      onPointerDown: (event: React.PointerEvent) => {
+        event.stopPropagation();
+        startPress(id, event, false);
+      },
+      ...containedShared,
     }),
     /** For the whole card: needs a short hold on touch, so scrolling still works. */
     cardProps: (id: string) => ({
