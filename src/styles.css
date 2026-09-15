@@ -809,6 +809,9 @@ button:disabled {
 }
 
 .card2 .drag-handle {
+  /* The original layout pulled the handle outward with negative margins.
+     In the tool stack those overlapped the neighbouring button. */
+  margin: 0;
   cursor: grab;
   /* Small target, so removing its touch gestures costs no page scrolling. */
   touch-action: none;
