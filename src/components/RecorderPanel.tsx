@@ -1,27 +1,20 @@
 import { useState } from "react";
 import {
   DEFAULT_MODEL,
-  IDLE_STOP_MS,
   LANGUAGE_OPTIONS,
   MODELS,
   MODEL_OPTIONS,
   SEGMENTATION_OPTIONS,
-  SESSION_SECONDS,
   type LanguageChoice,
   type SegmentationMode,
   type TranscriptionModel,
 } from "../config";
 import { useTranscription } from "../hooks/useTranscription";
-import { SentenceList } from "./SentenceList";
-import { UndoBar } from "./UndoBar";
-import { ErrorBanner } from "./ErrorBanner";
 import { SegmentedToggle } from "./SegmentedToggle";
-import { MicIndicator } from "./MicIndicator";
 import { Step, type StepState } from "./Stepper";
-import { StopNotice } from "./StopNotice";
 import { MicCheck } from "./MicCheck";
 import { Tabs } from "./Tabs";
-import { DataLayerView } from "./DataLayerView";
+import { TranscriptWorkspace } from "./TranscriptWorkspace";
 
 // sessionStorage, not localStorage: everything here dies when the tab closes.
 const KEY_STORAGE = "openai-api-key";
@@ -61,29 +54,12 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
   const [step, setStep] = useState(() => (sessionStorage.getItem(KEY_STORAGE) ? 2 : 1));
   const [tab, setTab] = useState<"improved" | "initial">("improved");
 
-  const {
-    status, sentences, interim, pending, error, warning, stopReason,
-    level, speaking, secondsLeft, start, stop,
-    editSentence, combineSentences, moveSentence, deleteSentence,
-    undoLabel, undo, dismissUndo,
-  } = useTranscription();
+  const session = useTranscription();
+  const { status, start } = session;
 
+  // Settings are locked while a session runs, so they cannot change underneath it.
   const isRunning = status !== "idle";
   const improvedTab = tab === "improved";
-  /** Once anything has been captured, Start becomes Record more. */
-  const hasRecorded = sentences.length > 0 || stopReason !== null;
-  /**
-   * Replaces the old "Stopped." block: a normal stop needs no explanation,
-   * but a timeout or an error would otherwise look like it stopped by itself.
-   */
-  const stopHint =
-    stopReason === "timeout"
-      ? `${SESSION_SECONDS}-second limit reached`
-      : stopReason === "silence"
-        ? `Stopped after ${IDLE_STOP_MS / 1000}s of silence`
-        : stopReason === "error"
-          ? "Stopped by the error above"
-          : null;
 
   function saveKey(value: string) {
     setApiKey(value);
@@ -246,78 +222,11 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
           </>
         )}
 
-        <SentenceList
-          sentences={sentences}
-          interim={interim}
-          pending={pending}
-          // Keep the newest statement in view while the list grows past the screen.
-          autoScroll={isRunning}
-          // Editing is offered only once the recording has finished.
-          editable={!isRunning}
+        <TranscriptWorkspace
+          session={session}
           variant={improvedTab ? "improved" : "initial"}
-          onEdit={editSentence}
-          onCombine={combineSentences}
-          onMove={moveSentence}
-          onDelete={deleteSentence}
+          onStart={(options) => start(apiKey, model, language, segmentation, options)}
         />
-        <UndoBar label={undoLabel} onUndo={undo} onDismiss={dismissUndo} />
-
-        <div className="row">
-          {isRunning ? (
-            <button type="button" onClick={() => stop("manual")} className="primary">
-              Stop
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="primary"
-              onClick={() =>
-                // Carry on from what is already there, appending to the end.
-                start(apiKey, model, language, segmentation, {
-                  keepExisting: improvedTab && hasRecorded,
-                })
-              }
-            >
-              {improvedTab ? (hasRecorded ? "Record more" : "Record now") : stopReason ? "Record again" : "Start"}
-            </button>
-          )}
-          <span className="countdown">{secondsLeft}s left</span>
-          <MicIndicator status={status} level={level} speaking={speaking} />
-          {improvedTab && !isRunning && stopHint && <span className="stop-hint">{stopHint}</span>}
-        </div>
-
-        {isRunning && (
-          <div
-            className="timebar"
-            role="progressbar"
-            aria-valuenow={secondsLeft}
-            aria-valuemin={0}
-            aria-valuemax={SESSION_SECONDS}
-          >
-            <span style={{ width: `${(secondsLeft / SESSION_SECONDS) * 100}%` }} />
-          </div>
-        )}
-
-        {error && <ErrorBanner message={error} />}
-        {warning && <ErrorBanner message={warning} variant="warning" />}
-
-        {!improvedTab && !isRunning && (
-          <StopNotice
-            reason={stopReason}
-            onRestart={() => start(apiKey, model, language, segmentation)}
-          />
-        )}
-
-        {!improvedTab && <MicCheck disabled={isRunning} />}
-
-        <p className="note">
-          Recording stops automatically after {SESSION_SECONDS} seconds, or after{" "}
-          {IDLE_STOP_MS / 1000} seconds of silence. A rate-limited sentence is skipped with a
-          warning — the session keeps running.
-        </p>
-
-        {/* §6 — the data behind the boxes, off by default. */}
-        {improvedTab && <DataLayerView sentences={sentences} />}
       </Step>
     </div>
   );

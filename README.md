@@ -226,7 +226,9 @@ microphone → AudioWorklet (PCM16 @ 24 kHz) → base64 → WebSocket → OpenAI
 | `src/realtime/connection.ts` | WebSocket, auth, session config, event mapping |
 | `src/audio/recorder.ts` | Microphone → PCM16 |
 | `public/pcm-worklet.js` | Float → 16-bit conversion, off the main thread |
-| `src/hooks/useTranscription.ts` | Glue, 60-second timer, error handling |
+| `src/hooks/useTranscription.ts` | Glue, 60-second timer, silence cut-off, error handling |
+| `src/components/RecorderPanel.tsx` | The four-step wizard: key, model, settings, talk |
+| `src/components/TranscriptWorkspace.tsx` | Everything below the microphone check: transcript, record controls, data layer |
 
 ### The sentence-final hook
 
