@@ -1,5 +1,5 @@
 import {
-  MODEL,
+  LIVE_DELAY,
   PREFIX_PADDING_MS,
   REALTIME_URL,
   SAMPLE_RATE,
@@ -8,16 +8,20 @@ import {
   VAD_THRESHOLD,
   type LanguageChoice,
   type SegmentationMode,
+  type TranscriptionModel,
 } from "../config";
 import type { TranscriptEvent } from "./types";
 
 export type RealtimeConnection = {
   sendAudio: (base64Audio: string) => void;
+  /** Ends the current turn. Only needed when the model has no server VAD. */
+  commit: () => void;
   close: () => void;
 };
 
 export function connectRealtime(
   apiKey: string,
+  model: TranscriptionModel,
   language: LanguageChoice,
   segmentation: SegmentationMode,
   onEvent: (event: TranscriptEvent) => void,
@@ -44,7 +48,7 @@ export function connectRealtime(
 
     switch (event.type) {
       case "session.created":
-        socket.send(JSON.stringify(buildSessionUpdate(language, segmentation)));
+        socket.send(JSON.stringify(buildSessionUpdate(model, language, segmentation)));
         break;
 
       case "session.updated":
@@ -117,6 +121,11 @@ export function connectRealtime(
         socket.send(JSON.stringify({ type: "input_audio_buffer.append", audio: base64Audio }));
       }
     },
+    commit() {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
+      }
+    },
     close() {
       closedByUs = true;
       socket.close();
@@ -171,7 +180,19 @@ function classifyError(
   return { fatal: true, message: error?.message ?? "OpenAI reported an error." };
 }
 
-function buildSessionUpdate(language: LanguageChoice, segmentation: SegmentationMode) {
+function buildSessionUpdate(
+  model: TranscriptionModel,
+  language: LanguageChoice,
+  segmentation: SegmentationMode,
+) {
+  const live = model === "gpt-live-transcribe";
+
+  // The two models disagree on the language field: gpt-live-transcribe takes a
+  // `languages` array, the other a singular `language`. Sending both is rejected.
+  const transcription = live
+    ? { model, delay: LIVE_DELAY, ...(language === "auto" ? {} : { languages: [language] }) }
+    : { model, ...(language === "auto" ? {} : { language }) };
+
   return {
     type: "session.update",
     session: {
@@ -179,12 +200,10 @@ function buildSessionUpdate(language: LanguageChoice, segmentation: Segmentation
       audio: {
         input: {
           format: { type: "audio/pcm", rate: SAMPLE_RATE },
-          transcription: {
-            model: MODEL,
-            // Omitted entirely for auto-detect; sending null is rejected.
-            ...(language === "auto" ? {} : { language }),
-          },
-          turn_detection: buildTurnDetection(segmentation),
+          transcription,
+          // gpt-live-transcribe rejects turn detection outright, so the browser
+          // commits turns instead. See useTranscription.
+          turn_detection: live ? null : buildTurnDetection(segmentation),
         },
       },
     },

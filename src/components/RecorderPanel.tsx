@@ -1,10 +1,13 @@
 import { useState } from "react";
 import {
+  DEFAULT_MODEL,
   LANGUAGE_OPTIONS,
+  MODEL_OPTIONS,
   SEGMENTATION_OPTIONS,
   SESSION_SECONDS,
   type LanguageChoice,
   type SegmentationMode,
+  type TranscriptionModel,
 } from "../config";
 import { useTranscription } from "../hooks/useTranscription";
 import { Transcript } from "./Transcript";
@@ -22,6 +25,7 @@ type Props = { showSegmentation?: boolean };
 
 export function RecorderPanel({ showSegmentation = false }: Props) {
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem(KEY_STORAGE) ?? "");
+  const [model, setModel] = useState<TranscriptionModel>(DEFAULT_MODEL);
   const [language, setLanguage] = useState<LanguageChoice>("de");
   const [segmentation, setSegmentation] = useState<SegmentationMode>(
     showSegmentation ? "punctuation" : "silence",
@@ -45,6 +49,17 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
     setApiKey("");
     sessionStorage.removeItem(KEY_STORAGE);
     setStep(1);
+  }
+
+  const isLive = model === "gpt-live-transcribe";
+  // Semantic splitting is server-side VAD, which gpt-live-transcribe rejects.
+  const segmentationOptions = SEGMENTATION_OPTIONS.filter(
+    (option) => !(isLive && option.value === "semantic"),
+  );
+
+  function chooseModel(next: TranscriptionModel) {
+    setModel(next);
+    if (next === "gpt-live-transcribe" && segmentation === "semantic") setSegmentation("punctuation");
   }
 
   const stateOf = (index: number): StepState =>
@@ -89,10 +104,31 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
 
       <Step
         index={2}
-        title="Choose your settings"
+        title="Choose the transcription mode"
         state={stateOf(2)}
-        summary={showSegmentation ? `${languageLabel} · ${segmentationLabel}` : languageLabel}
+        summary={MODEL_OPTIONS.find((o) => o.value === model)?.label}
         onEdit={() => setStep(2)}
+        editDisabled={isRunning}
+      >
+        <SegmentedToggle
+          label="Transcription mode"
+          options={MODEL_OPTIONS}
+          value={model}
+          onChange={chooseModel}
+          disabled={isRunning}
+        />
+        <p className="note">{describeModel(model)}</p>
+        <button type="button" className="primary" onClick={() => setStep(3)}>
+          Continue
+        </button>
+      </Step>
+
+      <Step
+        index={3}
+        title="Choose your settings"
+        state={stateOf(3)}
+        summary={showSegmentation ? `${languageLabel} · ${segmentationLabel}` : languageLabel}
+        onEdit={() => setStep(3)}
         editDisabled={isRunning}
       >
         <span className="field-label">Language</span>
@@ -109,21 +145,21 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
             <span className="field-label spaced">Sentence splitting</span>
             <SegmentedToggle
               label="Sentence splitting"
-              options={SEGMENTATION_OPTIONS}
+              options={segmentationOptions}
               value={segmentation}
               onChange={setSegmentation}
               disabled={isRunning}
             />
-            <p className="note">{describe(segmentation)}</p>
+            <p className="note">{describe(segmentation, isLive)}</p>
           </>
         )}
 
-        <button type="button" className="primary" onClick={() => setStep(3)}>
+        <button type="button" className="primary" onClick={() => setStep(4)}>
           Continue
         </button>
       </Step>
 
-      <Step index={3} title="Talk" state={stateOf(3)}>
+      <Step index={4} title="Talk" state={stateOf(4)}>
         <div className="row">
           {isRunning ? (
             <button type="button" onClick={() => stop("manual")} className="primary">
@@ -132,7 +168,7 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
           ) : (
             <button
               type="button"
-              onClick={() => start(apiKey, language, segmentation)}
+              onClick={() => start(apiKey, model, language, segmentation)}
               className="primary"
             >
               {stopReason ? "Record again" : "Start"}
@@ -157,7 +193,7 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
         {error && <ErrorBanner message={error} />}
         {warning && <ErrorBanner message={warning} variant="warning" />}
         {!isRunning && (
-          <StopNotice reason={stopReason} onRestart={() => start(apiKey, language, segmentation)} />
+          <StopNotice reason={stopReason} onRestart={() => start(apiKey, model, language, segmentation)} />
         )}
 
         <MicCheck disabled={isRunning} />
@@ -173,13 +209,26 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
   );
 }
 
-function describe(mode: SegmentationMode): string {
+function describeModel(model: TranscriptionModel): string {
+  return model === "gpt-live-transcribe"
+    ? "gpt-live-transcribe — words appear about a second behind your voice, while you are still " +
+        "speaking. It has no server-side pause detection, so the browser decides where sentences " +
+        "end. $0.017 per minute."
+    : "gpt-4o-transcribe — the sentence appears about 0.3 s after you stop talking, all at once. " +
+        "OpenAI decides where sentences end, including the semantic option below. $0.006 per minute.";
+}
+
+function describe(mode: SegmentationMode, isLive: boolean): string {
   switch (mode) {
     case "silence":
-      return "A pause of 500 ms ends a sentence. Predictable, but it splits when you hesitate mid-thought.";
+      return isLive
+        ? "The browser ends a sentence after 800 ms of silence."
+        : "A pause of 500 ms ends a sentence. Predictable, but it splits when you hesitate mid-thought.";
     case "semantic":
       return "A classifier decides when you have finished a thought, so trailing off does not end the sentence. Eagerness is set to low, which lets you take your time.";
     case "punctuation":
-      return "Semantic splitting for the audio, then the text is split again on . ? and ! — so one long turn can still produce several sentences. The text split costs no extra API requests.";
+      return isLive
+        ? "The browser ends a sentence after 800 ms of silence, then the text is split again on . ? and ! — free, no extra requests."
+        : "Semantic splitting for the audio, then the text is split again on . ? and ! — so one long turn can still produce several sentences. The text split costs no extra API requests.";
   }
 }

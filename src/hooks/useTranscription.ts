@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SESSION_SECONDS, type LanguageChoice, type SegmentationMode } from "../config";
+import {
+  CLIENT_SILENCE_LEVEL,
+  CLIENT_SILENCE_MS,
+  SESSION_SECONDS,
+  type LanguageChoice,
+  type SegmentationMode,
+  type TranscriptionModel,
+} from "../config";
 import { segment } from "../segmentation";
 import { MicrophoneError, startRecorder, type Recorder } from "../audio/recorder";
 import { connectRealtime, type RealtimeConnection } from "../realtime/connection";
@@ -27,6 +34,9 @@ export function useTranscription() {
   const recorder = useRef<Recorder | null>(null);
   /** Wall-clock end of the session, so reconnects don't reset the countdown. */
   const deadline = useRef(0);
+  /** Browser-side turn detection, used when the model has no server VAD. */
+  const heardSpeech = useRef(false);
+  const silentSince = useRef<number | null>(null);
 
   const stop = useCallback((reason: StopReason = "manual") => {
     recorder.current?.stop();
@@ -44,7 +54,12 @@ export function useTranscription() {
   }, []);
 
   const start = useCallback(
-    async (apiKey: string, language: LanguageChoice, segmentation: SegmentationMode = "silence") => {
+    async (
+      apiKey: string,
+      model: TranscriptionModel,
+      language: LanguageChoice,
+      segmentation: SegmentationMode = "silence",
+    ) => {
       setError(null);
       setWarning(null);
       setStopReason(null);
@@ -54,9 +69,11 @@ export function useTranscription() {
       setInterim("");
       setSecondsLeft(SESSION_SECONDS);
       deadline.current = Date.now() + SESSION_SECONDS * 1000;
+      heardSpeech.current = false;
+      silentSince.current = null;
       setStatus("connecting");
 
-      connection.current = connectRealtime(apiKey, language, segmentation, (event) => {
+      connection.current = connectRealtime(apiKey, model, language, segmentation, (event) => {
         switch (event.type) {
           case "ready":
             setStatus("recording");
@@ -86,10 +103,33 @@ export function useTranscription() {
         }
       });
 
+      // gpt-live-transcribe has no server VAD, so the browser decides where a
+      // sentence ends and commits the turn itself.
+      const browserDecidesTurns = model === "gpt-live-transcribe";
+
       try {
         recorder.current = await startRecorder((chunk, chunkLevel) => {
           connection.current?.sendAudio(chunk);
           setLevel(chunkLevel);
+          if (!browserDecidesTurns) return;
+
+          const loud = chunkLevel >= CLIENT_SILENCE_LEVEL;
+          setSpeaking(loud);
+
+          if (loud) {
+            heardSpeech.current = true;
+            silentSince.current = null;
+            return;
+          }
+          if (!heardSpeech.current) return;
+
+          const now = Date.now();
+          silentSince.current ??= now;
+          if (now - silentSince.current >= CLIENT_SILENCE_MS) {
+            heardSpeech.current = false;
+            silentSince.current = null;
+            connection.current?.commit();
+          }
         });
       } catch (micError) {
         setError(

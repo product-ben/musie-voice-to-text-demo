@@ -6,12 +6,38 @@
 export const REALTIME_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 
 /**
- * Verified working with server-side VAD on 14 Sep 2026.
- * `gpt-live-transcribe` is the newer model but rejects turn detection
- * ("Turn detection is not supported for this transcription model"),
- * which would mean detecting pauses in the browser instead. See README.
+ * The two transcription models differ in *when* text arrives, not just quality.
+ * Measured against the live API on 15 Sep 2026 with the same 10 s of German:
+ *
+ *   gpt-4o-transcribe    deltas only after the turn is committed, so the whole
+ *                        sentence lands ~0.3 s after you stop talking.
+ *                        Supports server-side VAD. $0.006/min.
+ *
+ *   gpt-live-transcribe  deltas stream ~0.5-1 s behind your voice, while you
+ *                        are still speaking. Rejects turn detection entirely,
+ *                        so sentence breaks must be decided in the browser.
+ *                        $0.017/min.
  */
-export const MODEL = "gpt-4o-transcribe";
+export type TranscriptionModel = "gpt-4o-transcribe" | "gpt-live-transcribe";
+
+export const MODEL_OPTIONS: { value: TranscriptionModel; label: string }[] = [
+  { value: "gpt-4o-transcribe", label: "After each pause" },
+  { value: "gpt-live-transcribe", label: "Live while speaking" },
+];
+
+export const DEFAULT_MODEL: TranscriptionModel = "gpt-4o-transcribe";
+
+/** Latency/accuracy trade-off, gpt-live-transcribe only. */
+export const LIVE_DELAY = "low";
+
+/**
+ * gpt-live-transcribe has no server VAD, so the browser decides where a
+ * sentence ends: this much silence after speech commits the turn.
+ */
+export const CLIENT_SILENCE_MS = 800;
+
+/** Chunk loudness below which the browser counts audio as silence. */
+export const CLIENT_SILENCE_LEVEL = 0.02;
 
 /**
  * ── THE DIAL YOU WILL ACTUALLY TURN ──

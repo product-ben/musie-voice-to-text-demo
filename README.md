@@ -58,6 +58,40 @@ public or production — that needs a small server minting short-lived `ek_` tok
 
 ---
 
+## Transcription mode: when the text arrives
+
+Step 2 of the wizard picks the model. They differ in *when* text appears, not just in
+quality. Measured against the live API on 15 September 2026 with the same 10 s of German:
+
+| | `gpt-4o-transcribe` | `gpt-live-transcribe` |
+| --- | --- | --- |
+| Wizard label | After each pause | Live while speaking |
+| First word appears | ~0.3 s **after you stop** | ~0.5–1 s behind your voice, **while speaking** |
+| How text lands | whole sentence at once | word by word |
+| Sentence breaks decided by | OpenAI (server VAD) | the browser |
+| Semantic splitting | available | **not available** |
+| Price | $0.006/min | $0.017/min |
+
+Measured traces, same audio:
+
+```
+gpt-4o-transcribe + semantic_vad        gpt-live-transcribe
+ 2.1s speech_started                     3.6s delta " Heute"     <- still talking
+ 4.3s speech_stopped + committed         4.0s delta " ist"
+ 4.6s delta "Heute" … " Tag" "."         4.2s delta " ein"
+ 4.9s COMPLETED                          4.6s delta " schöner"
+      (all text after the pause)         5.0s delta " Tag" "."
+```
+
+`gpt-live-transcribe` rejects `turn_detection` outright, so choosing it moves turn
+detection into the browser: `CLIENT_SILENCE_MS` (800 ms) of audio below
+`CLIENT_SILENCE_LEVEL` after speech sends `input_audio_buffer.commit`, and the
+`completed` event that follows is what fills a box. That is why the semantic option
+disappears from step 3 when this model is selected — semantic VAD is a server feature.
+
+It also takes `languages: ["de"]` where the other model takes `language: "de"`; sending
+both is rejected.
+
 ## Checking the microphone
 
 Step 3 has a **Test microphone** button. It runs the real capture path —
