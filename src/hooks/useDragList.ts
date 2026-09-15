@@ -36,6 +36,12 @@ export function useDragList({ onCombine, onMove }: Options) {
   const moved = useRef(false);
   const scrollFrame = useRef<number | null>(null);
   const edgeVelocity = useRef(0);
+  /**
+   * Auto-scroll stays disarmed until the pointer has been away from both edges
+   * once. Otherwise grabbing a card that is already near the bottom of a phone
+   * screen scrolls the page out from under the finger the moment you press.
+   */
+  const edgeArmed = useRef(false);
 
   const registerItem = useCallback((id: string, element: HTMLElement | null) => {
     if (element) items.current.set(id, element);
@@ -92,6 +98,7 @@ export function useDragList({ onCombine, onMove }: Options) {
     origin.current = null;
     pendingId.current = null;
     active.current = false;
+    edgeArmed.current = false;
   }, [stopEdgeScroll]);
 
   const onPointerDown = useCallback((id: string, event: React.PointerEvent) => {
@@ -130,8 +137,12 @@ export function useDragList({ onCombine, onMove }: Options) {
 
       const fromTop = event.clientY;
       const fromBottom = window.innerHeight - event.clientY;
+      const inEdge = fromTop < EDGE_PX || fromBottom < EDGE_PX;
+
+      if (!inEdge) edgeArmed.current = true;
+
       edgeVelocity.current =
-        fromTop < EDGE_PX ? -EDGE_SPEED : fromBottom < EDGE_PX ? EDGE_SPEED : 0;
+        !edgeArmed.current || !inEdge ? 0 : fromTop < EDGE_PX ? -EDGE_SPEED : EDGE_SPEED;
       if (edgeVelocity.current !== 0) runEdgeScroll();
       else stopEdgeScroll();
     },
