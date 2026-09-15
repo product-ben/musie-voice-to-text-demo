@@ -52,9 +52,15 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
   }
 
   const isLive = model === "gpt-live-transcribe";
-  // Semantic splitting is server-side VAD, which gpt-live-transcribe rejects.
+  // Semantic splitting is server-side VAD, which gpt-live-transcribe rejects —
+  // drop that option, and relabel the rest, since breaks come from a browser
+  // pause rather than a classifier.
   const segmentationOptions = SEGMENTATION_OPTIONS.filter(
     (option) => !(isLive && option.value === "semantic"),
+  ).map((option) =>
+    isLive && option.value === "punctuation"
+      ? { ...option, label: "Pause + punctuation" }
+      : option,
   );
 
   function chooseModel(next: TranscriptionModel) {
@@ -67,7 +73,7 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
 
   const languageLabel = LANGUAGE_OPTIONS.find((o) => o.value === language)?.label ?? language;
   const segmentationLabel =
-    SEGMENTATION_OPTIONS.find((o) => o.value === segmentation)?.label ?? segmentation;
+    segmentationOptions.find((o) => o.value === segmentation)?.label ?? segmentation;
 
   return (
     <div className="steps">
