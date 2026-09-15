@@ -224,8 +224,8 @@ button:disabled {
   .mic-bar { animation: none; transition: none; }
 }
 
-/* ── Privacy note ──────────────────────────────────────────── */
-.privacy {
+/* ── Disclosures (How this works / Privacy) ────────────────── */
+.disclosure {
   margin-top: 2rem;
   border-top: 1px solid #e4e4e4;
   padding-top: 1rem;
@@ -233,23 +233,46 @@ button:disabled {
   color: #555;
 }
 
-.privacy summary {
+.disclosure summary {
   cursor: pointer;
   font-weight: 600;
   color: #1a1a1a;
 }
 
-.privacy ul {
+.disclosure ul {
   margin: 0.75rem 0 0;
   padding-left: 1.1rem;
   line-height: 1.6;
 }
 
-.privacy li {
+.disclosure li {
   margin-bottom: 0.5rem;
 }
 
-.privacy-source {
+.disclosure + .disclosure {
+  margin-top: 0;
+  padding-top: 0.75rem;
+}
+
+.disclosure h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 1rem 0 0.35rem;
+}
+
+.disclosure h3:first-of-type {
+  margin-top: 0.85rem;
+}
+
+.disclosure code {
+  background: #f0f0f0;
+  padding: 0.05rem 0.25rem;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.disclosure-source {
   color: #888;
   margin: 0.5rem 0 0;
   line-height: 1.5;

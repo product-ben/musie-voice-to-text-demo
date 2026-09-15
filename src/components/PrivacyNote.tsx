@@ -4,7 +4,7 @@
  */
 export function PrivacyNote() {
   return (
-    <details className="privacy">
+    <details className="disclosure">
       <summary>What happens to your voice and text?</summary>
       <ul>
         <li>
@@ -30,7 +30,7 @@ export function PrivacyNote() {
           speaker, not anonymous overall.
         </li>
       </ul>
-      <p className="privacy-source">
+      <p className="disclosure-source">
         Based on OpenAI's{" "}
         <a
           href="https://developers.openai.com/api/docs/guides/your-data"
