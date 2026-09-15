@@ -31,6 +31,7 @@ export function SentenceCardV2({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(sentence.text);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const actionsId = `statement-actions-${sentence.id}`;
   useAutoGrow(textarea, editing ? draft : "");
 
   useEffect(() => {
@@ -83,7 +84,7 @@ export function SentenceCardV2({
         )}
 
         {menuOpen && !editing && (
-          <div className="card-menu" data-no-drag>
+          <div className="card-menu" id={actionsId} data-no-drag>
             <button type="button" className="menu-button" onClick={startEditing}>
               Edit
             </button>
@@ -123,17 +124,23 @@ export function SentenceCardV2({
 
           <button
             type="button"
-            className="tool"
+            className="tool chevron"
             data-no-drag
             onClick={onToggleMenu}
             aria-expanded={menuOpen}
-            aria-label={`Actions for statement ${position}`}
-            title="More"
+            aria-controls={actionsId}
+            aria-label={`${menuOpen ? "Hide" : "Show"} actions for statement ${position}`}
+            title={menuOpen ? "Close" : "Open"}
           >
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-              <circle cx="8" cy="3" r="1.5" />
-              <circle cx="8" cy="8" r="1.5" />
-              <circle cx="8" cy="13" r="1.5" />
+              <path
+                d="M4 6.5 L8 10.5 L12 6.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </button>
         </div>

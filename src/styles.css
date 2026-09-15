@@ -758,12 +758,24 @@ button:disabled {
 }
 
 /* Controls stack on the right: drag, edit, delete. Always visible. */
+/*
+ * Touch first: stacked, so the statement keeps the full width of a narrow
+ * screen. Desktop has room to place them side by side, which makes the card
+ * shorter there.
+ */
 .card2-tools {
   flex: none;
   display: flex;
   flex-direction: column;
   gap: 0;
   align-self: center;
+}
+
+@media (min-width: 640px) {
+  .card2-tools {
+    flex-direction: row;
+    align-items: center;
+  }
 }
 
 .tool {
@@ -971,4 +983,20 @@ button:disabled {
 .card2.is-menu-open .tool[aria-expanded="true"] {
   color: #1a1a1a;
   background: #f2f2f2;
+}
+
+/* The chevron is an outline, not a filled shape, and turns when open. */
+.tool.chevron svg {
+  fill: none;
+  transition: transform 180ms ease;
+}
+
+.tool.chevron[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool.chevron svg {
+    transition: none;
+  }
 }
