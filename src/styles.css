@@ -419,3 +419,31 @@ button:disabled {
   padding: 0.3rem 0.7rem;
   font-size: 0.78rem;
 }
+
+/* ── Microphone self-check ─────────────────────────────────── */
+.miccheck {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #e4e4e4;
+}
+
+.check-pass,
+.check-fail {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 0.6rem 0 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 6px;
+}
+
+.check-pass {
+  background: #eaf6ec;
+  border: 1px solid #b8dfc2;
+  color: #1a5f2c;
+}
+
+.check-fail {
+  background: #fdecea;
+  border: 1px solid #f5c2c0;
+  color: #8a1c14;
+}

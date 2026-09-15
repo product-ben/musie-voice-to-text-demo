@@ -13,6 +13,7 @@ import { SegmentedToggle } from "./SegmentedToggle";
 import { MicIndicator } from "./MicIndicator";
 import { Step, type StepState } from "./Stepper";
 import { StopNotice } from "./StopNotice";
+import { MicCheck } from "./MicCheck";
 
 // sessionStorage, not localStorage: the key dies when the tab closes.
 const KEY_STORAGE = "openai-api-key";
@@ -158,6 +159,8 @@ export function RecorderPanel({ showSegmentation = false }: Props) {
         {!isRunning && (
           <StopNotice reason={stopReason} onRestart={() => start(apiKey, language, segmentation)} />
         )}
+
+        <MicCheck disabled={isRunning} />
 
         <Transcript sentences={sentences} interim={interim} />
 

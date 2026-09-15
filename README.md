@@ -58,6 +58,23 @@ public or production — that needs a small server minting short-lived `ek_` tok
 
 ---
 
+## Checking the microphone
+
+Step 3 has a **Test microphone** button. It runs the real capture path —
+`getUserMedia`, the AudioWorklet, PCM16 conversion — but opens no socket, so it needs
+no API key and costs nothing.
+
+It listens for four seconds, shows a live level meter, and then reports one of three
+things:
+
+| Result | Meaning |
+| --- | --- |
+| ✓ *Microphone working — N chunks, peak X%* | Capture is fine. Any remaining problem is the key, credits, or the connection. |
+| ✕ *Silent: audio is flowing but peaked at only X%* | The device is open but muted, or the browser is using the wrong input. |
+| ✕ *Microphone access was denied* | A browser permission problem. |
+
+Use it to tell a microphone problem apart from a key problem before spending requests.
+
 ## Why a session ends
 
 A session that stops without explanation reads as random. There are exactly three
