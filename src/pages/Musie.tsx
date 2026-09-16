@@ -64,54 +64,61 @@ export function Musie() {
           `:root, [data-theme]`, so this subtree recomputes light-dark() on its
           own while the rest of the demo keeps its plain styling. */}
       <div className="musie-page" data-theme={theme}>
-        <header className="musie-page__head">
-          <h1 className="musie-page__title" data-type-step="heading-lg">
-            The transcript workspace, in Musy
-          </h1>
-          <Switch
-            label={theme === "dark" ? "Dark" : "Light"}
-            reverse
-            checked={theme === "dark"}
-            onCheckedChange={toggleTheme}
-            onGlyph={Moon}
-            offGlyph={Sun}
-          />
-        </header>
+        {/* A title and its subtitle: --space-gap-related, per §5. */}
+        <div className="musie-intro">
+          <header className="musie-page__head">
+            <h1 className="musie-page__title" data-type-step="heading-lg">
+              The transcript workspace, in Musy
+            </h1>
+            <Switch
+              label={theme === "dark" ? "Dark" : "Light"}
+              reverse
+              checked={theme === "dark"}
+              onCheckedChange={toggleTheme}
+              onGlyph={Moon}
+              offGlyph={Sun}
+            />
+          </header>
 
-        <p className="musie-card__text" data-type-step="body-md">
-          The same component as on the Demo page, with the same hooks behind it.
-          Every part you can see is a released Musy component — Voice Note, Content
-          Box, Message, Switch, CTA Button, Icon Button, Badge — and the only CSS
-          written for this page is the layout between them, in tokens.
-        </p>
-
-        <div className="musy-field">
-          <label className="musy-field__label" htmlFor={keyId}>
-            OpenAI API key
-          </label>
-          <input
-            id={keyId}
-            type="password"
-            className="musy-field__control"
-            value={apiKey}
-            autoComplete="off"
-            placeholder="sk-…"
-            onChange={(event) => saveKey(event.target.value)}
-            data-filled={apiKey ? "" : undefined}
-          />
-          <p className="musy-field__description">
-            Kept in this browser tab only and sent only to api.openai.com. Shared
-            with the Demo page, so entering it once is enough.
+          <p className="musie-prose" data-type-step="body-md">
+            The same component as on the Demo page, with the same hooks behind it.
+            Every part you can see is a released Musy component — Voice Note, Content
+            Box, Message, Switch, CTA Button, Icon Button, Badge — and the only CSS
+            written for this page is the layout between them, in tokens.
           </p>
         </div>
 
-        {!apiKey && (
-          <Message
-            variant="info"
-            headline="Add a key to record"
-            text="Recording is disabled until a key is entered. Everything else on the page is live — the layout, the theme, and the editing controls once statements exist."
-          />
-        )}
+        {/* The field and the message explaining why it matters are one
+            molecule: --space-gap-stack between them, per §5. */}
+        <div className="musie-key">
+          <div className="musy-field">
+            <label className="musy-field__label" htmlFor={keyId}>
+              OpenAI API key
+            </label>
+            <input
+              id={keyId}
+              type="password"
+              className="musy-field__control"
+              value={apiKey}
+              autoComplete="off"
+              placeholder="sk-…"
+              onChange={(event) => saveKey(event.target.value)}
+              data-filled={apiKey ? "" : undefined}
+            />
+            <p className="musy-field__description">
+              Kept in this browser tab only and sent only to api.openai.com. Shared
+              with the Demo page, so entering it once is enough.
+            </p>
+          </div>
+
+          {!apiKey && (
+            <Message
+              variant="info"
+              headline="Add a key to record"
+              text="Recording is disabled until a key is entered. Everything else on the page is live — the layout, the theme, and the editing controls once statements exist."
+            />
+          )}
+        </div>
 
         <MusieTranscriptWorkspace
           session={session}

@@ -212,13 +212,53 @@ doc sets:
 | Part of the workspace | Musy component |
 | --- | --- |
 | Record / stop control | **Voice Note** — controlled, and it never calls `getUserMedia`, which is exactly this app's split |
-| A finalised statement | **Content Box**, with a real heading |
+| A finalised statement | **Content Box**, heading kept for the outline, hidden on screen |
 | Waiting for words | **Content Box** `outline="dashed"` — the system's own reading of *provisional / awaiting content* (token gap G2) |
-| Errors, warnings, undo | **Message**, each with an explicit `live` region |
+| Errors, warnings | **Message**, each with an explicit `live` region |
 | Countdown, stop reason | **Badge** |
-| Drag / edit / delete | **Icon Button** at `--target-primary` |
-| Save, cancel, undo | **CTA Button** |
+| Drag, show more | **Icon Button**, ghost, in a stack on the right |
+| Edit, delete, save, discard | **CTA Button** — ghost with a leading icon in the accordion; Save turns primary only once there is a change to save |
 | Data layer, theme | **Switch** |
+| Undo | a **toast** — the one pattern the system has no component for (see G5 below) |
+
+### The card
+
+Two controls are always visible — drag and a chevron — stacked on the right.
+The chevron is a disclosure (`aria-expanded` + `aria-controls`), and opening it
+reveals Edit and Delete; one card is open at a time. The statement text carries
+`user-select: none`, because the whole card is a drag surface and a marquee
+starting under the finger beats the gesture to it.
+
+**Target size is the one place this page splits by device.** `size="min"`
+(24px) on a fine pointer, `size="primary"` (44px) on a coarse one, chosen
+through Icon Button's own `size` prop rather than by overriding its internal
+custom property. Foundations §5.4 keeps `--target-min` for "inline controls
+inside prose only", and these are a card's only affordances — but at 24px the
+control still clears WCAG 2.2 SC 2.5.8, so on a cursor it is a comfort call
+rather than an accessibility one. The tool stack is what sets card height:
+**130px collapsed on desktop, 154px on touch** (193px / 216px with the
+accordion open). If mobile height matters more than the 44px target, moving
+touch to `min` too brings it to ~130px everywhere.
+
+### Spacing, audited against §5
+
+Every gap on the page is the token §5 names for that relationship, and the
+"gap between two groups is at least double the largest gap inside either group"
+rule is checked rather than assumed:
+
+| Between | Token | Measured |
+| --- | --- | --- |
+| Page sections | `--space-section` / `--space-section-lg` | 48px, 96px ≥ `--bp-lg` |
+| Title and its subtitle | `--space-gap-related` | 12px |
+| Key field and its message | `--space-gap-stack` | 16px |
+| Transcript / recording / data layer | `--space-gap-group` | 32px — exactly 2× the 16px inside each |
+| Statements in the list | `--space-gap-stack` | 16px |
+| Statement and its controls | `--space-gap-stack` | 16px |
+| Inside a card | `--space-inset-card`, Content Box's own gap | 24px, 12px |
+
+The tool stack is the one place with `gap: 0`: at `size="min"` the system
+already owes the button `--sp-2` of clear space on every side for 2.5.8, and
+two of those margins meet at exactly `--space-gap-stack`.
 
 The only CSS written for the page is `src/musie/musie.css` — the arrangement
 *between* components, which no design system ships. It follows the rule the
@@ -231,10 +271,10 @@ subtree recomputes `light-dark()` (§12), and scoping it this way keeps
 `color-scheme: dark` off the other two pages. Same attribute, same
 `musy-theme` storage key, narrower scope.
 
-### Two things found in the package while building this
+### Findings
 
-Neither was worked around by editing the design system — it is consumed, never
-amended — so both are reported here instead.
+None of these were worked around by editing the design system — it is consumed,
+never amended — so they are reported here instead.
 
 1. **`Field` cannot show existing text.** It passes `value`, `defaultValue` and
    `onValueChange` to base-ui's `Field.Root`, which has none of them (checked
@@ -247,6 +287,31 @@ amended — so both are reported here instead.
 2. **`Lightbox` passes `dismissible` to `Dialog.Root`**, which does not accept
    it. Not used here; components are imported per file rather than through
    `components/index.ts` so the barrel does not drag it into the build.
+3. **Gap G5 — there is no Toast.** Message's own source says so: "base-ui's
+   Toast is a different pattern (portaled, queued, auto-dismissing)". Yet Layer
+   1 ships `--z-toast`, ranked *above* `--z-sheet` with the stated reason that
+   "a session saved confirmation must be visible over an open sheet" — a layer
+   with no consumer in the released set. The undo toast here is built to the
+   system's conventions (token-only, `--z-toast`, entrance travel from
+   `--motion-travel-sm` so reduced motion flattens it) and is the case for
+   Layer 2 absorbing one.
+4. **`ContentBox` has no `headlineHidden`.** The headline is required and is
+   what puts the box in the document outline — the documented reason it is an
+   `<article>`. A card here shows the statement alone, so the heading has to be
+   hidden visually, and with no prop and no className for that part the only
+   route is reproducing `.musy-sr-only`'s declarations in the page's own CSS.
+   `Switch` already has exactly this prop, spelled `labelHidden`; Content Box
+   wants the same.
+5. **The accent solids do not clear 3:1 as graphics.** `--interactive-accent-
+   placeholder2` is `purple-9` (#CCA6C7), and Layer 1's own comment on step 9
+   reads "Solid fill — buttons, filled chips, **meaningful graphics**". Measured
+   as a graphic it is **1.85:1 against the page and 2.01:1 against a card** —
+   under the 3:1 that 1.4.11 requires. The drop indicator therefore uses the
+   same family's `-border` step (`purple-edge`), which Layer 1 annotates "solved
+   ≥3:1 vs every surface" and which measures **3.90:1 / 4.25:1**. The contrast
+   audit's "94 pairs, 0 failures" appears to cover foreground-on-fill pairs,
+   not solid-on-surface, so step 9's "meaningful graphics" claim is worth either
+   re-wording or re-solving.
 
 Only `tokens/` and `components/` are committed — the folders the build imports.
 The package's `docs/`, proof pages and screenshots stay local, so deploying this

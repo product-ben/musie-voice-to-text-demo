@@ -5,7 +5,6 @@ import { Timer } from "lucide-react";
 // against the base-ui version the package itself declares. See README.
 import { Badge } from "../../reference/musie_260915/components/Badge";
 import { ContentBox } from "../../reference/musie_260915/components/ContentBox";
-import { CtaButton } from "../../reference/musie_260915/components/CtaButton";
 import { Message } from "../../reference/musie_260915/components/Message";
 import { Switch } from "../../reference/musie_260915/components/Switch";
 import { VoiceNote } from "../../reference/musie_260915/components/VoiceNote";
@@ -14,6 +13,8 @@ import { useDragList } from "../hooks/useDragList";
 import type { useTranscription } from "../hooks/useTranscription";
 import type { Sentence } from "../transcript/types";
 import { MusieStatementCard } from "./MusieStatementCard";
+import { MusieToast } from "./MusieToast";
+import { useCoarsePointer } from "./useCoarsePointer";
 
 type Props = {
   /** A live transcription session: its state and everything that can act on it. */
@@ -52,6 +53,9 @@ export function MusieTranscriptWorkspace({ session, canRecord, onStart }: Props)
   } = session;
 
   const [showData, setShowData] = useState(false);
+  /** Only one card's actions are open at a time, so the list stays scannable. */
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const toolSize = useCoarsePointer() ? "primary" : "min";
   const isRunning = status !== "idle";
   const hasRecorded = sentences.length > 0 || stopReason !== null;
 
@@ -101,6 +105,11 @@ export function MusieTranscriptWorkspace({ session, canRecord, onStart }: Props)
                     editable={!isRunning}
                     dragging={drag.draggingId === sentence.id}
                     dropMode={target}
+                    menuOpen={openMenuId === sentence.id}
+                    onToggleMenu={() =>
+                      setOpenMenuId((current) => (current === sentence.id ? null : sentence.id))
+                    }
+                    toolSize={toolSize}
                     onSave={(text) => editSentence(sentence.id, text)}
                     onDelete={() => deleteSentence(sentence.id)}
                     handleProps={drag.handleProps(sentence.id)}
@@ -132,18 +141,6 @@ export function MusieTranscriptWorkspace({ session, canRecord, onStart }: Props)
         )}
 
         <div ref={endOfList} aria-hidden="true" />
-
-        {undoLabel && (
-          <Message
-            variant="info"
-            live="polite"
-            headline={undoLabel}
-            text="The previous version is still available for a few seconds."
-            action={<CtaButton variant="ghost" onClick={undo}>Undo</CtaButton>}
-            onDismiss={dismissUndo}
-            dismissLabel="Dismiss"
-          />
-        )}
       </section>
 
       <section className="musie-stack" aria-label="Recording">
@@ -214,6 +211,8 @@ export function MusieTranscriptWorkspace({ session, canRecord, onStart }: Props)
           />
         )}
       </section>
+
+      <MusieToast label={undoLabel} onAction={undo} onDismiss={dismissUndo} />
 
       {dragged && drag.pointer && (
         <div

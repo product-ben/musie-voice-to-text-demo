@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { GripVertical, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, GripVertical, Pencil, Trash2 } from "lucide-react";
 import { ContentBox } from "../../reference/musie_260915/components/ContentBox";
 import { CtaButton } from "../../reference/musie_260915/components/CtaButton";
 import { IconButton } from "../../reference/musie_260915/components/IconButton";
@@ -12,6 +12,11 @@ type Props = {
   editable: boolean;
   dragging: boolean;
   dropMode: DropMode | null;
+  /** Only one card's actions are open at a time, so the list stays scannable. */
+  menuOpen: boolean;
+  onToggleMenu: () => void;
+  /** 24px on a cursor, 44px on a finger. See useCoarsePointer. */
+  toolSize: "min" | "primary";
   onSave: (text: string) => void;
   onDelete: () => void;
   handleProps: Record<string, unknown>;
@@ -22,25 +27,31 @@ type Props = {
 /**
  * One finalised statement, as a Content Box.
  *
- * The box's own `text` part is `on-surface-muted` — right for a description
- * under a headline, wrong here, where the statement *is* the content and the
- * headline is only its number. So the statement goes in the slot at full
- * `on-surface`, and the headline carries the position at `label-md`.
+ * The heading is still rendered — it is what puts the box in the document
+ * outline, which is the documented reason Content Box is an `<article>` at all
+ * — but it is hidden visually, so the card shows the statement and nothing
+ * else. See musie.css for why that takes a rule rather than a prop.
+ *
+ * The two always-visible controls sit in a stack on the right; Edit and Delete
+ * are disclosed by the chevron. Both parts of the accordion are wired the way
+ * base-ui wires a disclosure: `aria-expanded` on the trigger, `aria-controls`
+ * pointing at the region it opens.
  *
  * The editor composes on Field's PARTS (`.musy-field__*`) rather than using the
- * Field component. That is the system's own pattern, not a shortcut around it:
- * Voice Note does exactly this and says so — "composed on Field's parts (§7.16):
- * label, description and error are `.musy-field__*`. Only the control surface
- * is new." Here it is also the only option, because the released Field cannot
- * show existing text — see the note in README.
+ * Field component. That is the system's own pattern, stated in Voice Note —
+ * "composed on Field's parts (§7.16) … only the control surface is new" — and
+ * here it is also the only option, because the released Field cannot show
+ * existing text. See README.
  */
 export function MusieStatementCard({
-  sentence, position, editable, dragging, dropMode,
-  onSave, onDelete, handleProps, cardProps, registerRef,
+  sentence, position, editable, dragging, dropMode, menuOpen, onToggleMenu,
+  toolSize, onSave, onDelete, handleProps, cardProps, registerRef,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(sentence.text);
-  const fieldId = useId();
+  const reactId = useId();
+  const menuId = `musie-menu-${reactId}`;
+  const fieldId = `musie-field-${reactId}`;
 
   /** Seeded on open rather than synced: a merge can rewrite the statement
    *  while the editor is closed, and the draft must not be stale when it
@@ -55,10 +66,14 @@ export function MusieStatementCard({
     setEditing(false);
   }
 
-  function cancel() {
+  function discard() {
     setDraft(sentence.text);
     setEditing(false);
   }
+
+  /** Primary only once there is something to save — otherwise Save and Discard
+   *  are the same weight, because at that point they do the same thing. */
+  const edited = draft.trim() !== sentence.text && draft.trim() !== "";
 
   return (
     <ContentBox
@@ -72,67 +87,82 @@ export function MusieStatementCard({
       ].filter(Boolean).join(" ")}
       // base-ui composition: the drag surface and the measurement ref go onto
       // the element the system already renders, not a wrapper around it.
-      render={
-        <article
-          ref={registerRef}
-          {...(editable && !editing ? cardProps : {})}
-        />
-      }
+      render={<article ref={registerRef} {...(editable && !editing ? cardProps : {})} />}
     >
-      {editing ? (
-        <>
-          <div className="musy-field">
-            <label className="musy-field__label" htmlFor={fieldId}>
-              Statement {position}
-            </label>
-            <textarea
-              id={fieldId}
-              className="musy-field__control musy-field__control--textarea"
-              rows={3}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              data-filled={draft ? "" : undefined}
-            />
-            <p className="musy-field__description">
-              Saving re-runs the sentence-final hook with the corrected text.
+      <div className="musie-card__row">
+        <div className="musie-card__main">
+          {editing ? (
+            <>
+              <div className="musy-field">
+                <label className="musy-field__label" htmlFor={fieldId}>
+                  Statement {position}
+                </label>
+                <textarea
+                  id={fieldId}
+                  className="musy-field__control musy-field__control--textarea"
+                  rows={3}
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  data-filled={draft ? "" : undefined}
+                />
+                <p className="musy-field__description">
+                  Saving re-runs the sentence-final hook with the corrected text.
+                </p>
+              </div>
+              <div className="musie-card__actions">
+                <CtaButton
+                  variant={edited ? "primary" : "secondary"}
+                  disabled={!edited}
+                  onClick={save}
+                >
+                  Save
+                </CtaButton>
+                <CtaButton variant="secondary" onClick={discard}>
+                  Discard
+                </CtaButton>
+              </div>
+            </>
+          ) : (
+            <p className="musie-card__text" data-type-step="body-md">
+              {sentence.text}
             </p>
-          </div>
-          <div className="musie-card__actions">
-            <CtaButton onClick={save} disabled={!draft.trim()}>
-              Save
-            </CtaButton>
-            <CtaButton variant="ghost" onClick={cancel}>
-              Cancel
-            </CtaButton>
-          </div>
-        </>
-      ) : (
-        <p className="musie-card__text" data-type-step="body-md">
-          {sentence.text}
-        </p>
-      )}
+          )}
+        </div>
 
-      {editable && !editing && (
-        <div className="musie-card__actions">
-          <IconButton
-            glyph={GripVertical}
-            label={`Drag statement ${position}`}
-            className="musie-card__handle"
-            {...handleProps}
-          />
-          <IconButton
-            glyph={Pencil}
-            label={`Edit statement ${position}`}
-            data-no-drag=""
-            onClick={startEditing}
-          />
-          <span className="musie-card__spacer" />
-          <IconButton
-            glyph={Trash2}
-            label={`Delete statement ${position}`}
-            data-no-drag=""
-            onClick={onDelete}
-          />
+        {editable && !editing && (
+          <div className="musie-card__tools" data-size={toolSize}>
+            <IconButton
+              glyph={GripVertical}
+              label={`Drag statement ${position}`}
+              variant="ghost"
+              size={toolSize}
+              className="musie-card__handle"
+              {...handleProps}
+            />
+            <IconButton
+              glyph={ChevronDown}
+              label={menuOpen ? `Hide actions for statement ${position}`
+                              : `Show actions for statement ${position}`}
+              variant="ghost"
+              size={toolSize}
+              className="musie-card__chevron"
+              aria-expanded={menuOpen}
+              aria-controls={menuOpen ? menuId : undefined}
+              data-no-drag=""
+              onClick={onToggleMenu}
+            />
+          </div>
+        )}
+      </div>
+
+      {editable && !editing && menuOpen && (
+        <div className="musie-card__actions" id={menuId}>
+          <CtaButton variant="ghost" leadingIcon={Pencil} data-no-drag="" onClick={startEditing}>
+            Edit
+          </CtaButton>
+          <CtaButton variant="ghost" leadingIcon={Trash2} data-no-drag="" onClick={onDelete}>
+            Delete
+          </CtaButton>
         </div>
       )}
     </ContentBox>
