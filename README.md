@@ -223,11 +223,31 @@ doc sets:
 
 ### The card
 
-Two controls are always visible — drag and a chevron — stacked on the right.
-The chevron is a disclosure (`aria-expanded` + `aria-controls`), and opening it
-reveals Edit and Delete; one card is open at a time. The statement text carries
-`user-select: none`, because the whole card is a drag surface and a marquee
-starting under the finger beats the gesture to it.
+Two controls are always visible — drag and a chevron — **floated to the end of
+the statement's first line**. The chevron is a disclosure (`aria-expanded` +
+`aria-controls`), and opening it reveals Edit and Delete; one card is open at a
+time. The statement text carries `user-select: none`, because the whole card is
+a drag surface and a marquee starting under the finger beats the gesture to it.
+
+An actual CSS float, not a flex column beside the text, and the difference shows
+on a long statement. Floated, the first two lines wrap around the controls and
+every line after runs the full width — measured line widths on a 390px viewport:
+`140 · 135 · 229 · 201 · 223 · 239px`. A flex row would have taken the same bite
+out of *every* line and grown the card back:
+
+| Statement | Stacked | Flex row | Floated |
+| --- | --- | --- | --- |
+| One or two lines (touch) | 154px | 104px | **104px** |
+| Six lines (touch) | ~184px | 322px | **213px** |
+| Any length (desktop, 1–2 lines) | 130px | 90px | **90px** |
+
+Two consequences worth knowing. The controls come **before** the text in the
+DOM, because a float only works from the front of the flow — each names its
+statement in its accessible label, and the box's hidden heading is announced
+before either, so the reading stays unambiguous. And the text is a plain `<p>`:
+a flex or grid container establishes its own formatting context and steps
+around a float instead of wrapping beside it, which is exactly the bug the
+first attempt had.
 
 **Target size is the one place this page splits by device.** `size="min"`
 (24px) on a fine pointer, `size="primary"` (44px) on a coarse one, chosen
@@ -235,10 +255,8 @@ through Icon Button's own `size` prop rather than by overriding its internal
 custom property. Foundations §5.4 keeps `--target-min` for "inline controls
 inside prose only", and these are a card's only affordances — but at 24px the
 control still clears WCAG 2.2 SC 2.5.8, so on a cursor it is a comfort call
-rather than an accessibility one. The tool stack is what sets card height:
-**130px collapsed on desktop, 154px on touch** (193px / 216px with the
-accordion open). If mobile height matters more than the 44px target, moving
-touch to `min` too brings it to ~130px everywhere.
+rather than an accessibility one. Since the controls float rather than stack,
+the statement sets the card's height, not the buttons.
 
 ### Spacing, audited against §5
 

@@ -32,10 +32,12 @@ type Props = {
  * — but it is hidden visually, so the card shows the statement and nothing
  * else. See musie.css for why that takes a rule rather than a prop.
  *
- * The two always-visible controls sit in a stack on the right; Edit and Delete
- * are disclosed by the chevron. Both parts of the accordion are wired the way
- * base-ui wires a disclosure: `aria-expanded` on the trigger, `aria-controls`
- * pointing at the region it opens.
+ * The two always-visible controls float to the end of the statement's first
+ * line, so a short statement makes a short card and a long one still wraps
+ * underneath them at full width. A float only works from the front of the
+ * flow, which is why they come before the text in the DOM. Edit and Delete are
+ * disclosed by the chevron, wired the way base-ui wires a disclosure:
+ * `aria-expanded` on the trigger, `aria-controls` pointing at what it opens.
  *
  * The editor composes on Field's PARTS (`.musy-field__*`) rather than using the
  * Field component. That is the system's own pattern, stated in Voice Note —
@@ -90,45 +92,6 @@ export function MusieStatementCard({
       render={<article ref={registerRef} {...(editable && !editing ? cardProps : {})} />}
     >
       <div className="musie-card__row">
-        <div className="musie-card__main">
-          {editing ? (
-            <>
-              <div className="musy-field">
-                <label className="musy-field__label" htmlFor={fieldId}>
-                  Statement {position}
-                </label>
-                <textarea
-                  id={fieldId}
-                  className="musy-field__control musy-field__control--textarea"
-                  rows={3}
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  data-filled={draft ? "" : undefined}
-                />
-                <p className="musy-field__description">
-                  Saving re-runs the sentence-final hook with the corrected text.
-                </p>
-              </div>
-              <div className="musie-card__actions">
-                <CtaButton
-                  variant={edited ? "primary" : "secondary"}
-                  disabled={!edited}
-                  onClick={save}
-                >
-                  Save
-                </CtaButton>
-                <CtaButton variant="secondary" onClick={discard}>
-                  Discard
-                </CtaButton>
-              </div>
-            </>
-          ) : (
-            <p className="musie-card__text" data-type-step="body-md">
-              {sentence.text}
-            </p>
-          )}
-        </div>
-
         {editable && !editing && (
           <div className="musie-card__tools" data-size={toolSize}>
             <IconButton
@@ -152,6 +115,45 @@ export function MusieStatementCard({
               onClick={onToggleMenu}
             />
           </div>
+        )}
+        {editing ? (
+          <div className="musie-card__editor">
+            <div className="musy-field">
+              <label className="musy-field__label" htmlFor={fieldId}>
+                Statement {position}
+              </label>
+              <textarea
+                id={fieldId}
+                className="musy-field__control musy-field__control--textarea"
+                rows={3}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                data-filled={draft ? "" : undefined}
+              />
+              <p className="musy-field__description">
+                Saving re-runs the sentence-final hook with the corrected text.
+              </p>
+            </div>
+            <div className="musie-card__actions">
+              <CtaButton
+                variant={edited ? "primary" : "secondary"}
+                disabled={!edited}
+                onClick={save}
+              >
+                Save
+              </CtaButton>
+              <CtaButton variant="secondary" onClick={discard}>
+                Discard
+              </CtaButton>
+            </div>
+          </div>
+        ) : (
+          /* A plain block, deliberately: a flex or grid container establishes
+             its own formatting context and would step around the float instead
+             of wrapping its lines beside it. */
+          <p className="musie-card__text" data-type-step="body-md">
+            {sentence.text}
+          </p>
         )}
       </div>
 

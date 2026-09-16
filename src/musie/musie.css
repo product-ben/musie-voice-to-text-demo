@@ -129,32 +129,46 @@ body {
   border: 0;
 }
 
-/* Statement beside its controls. §5: two controls in one molecule sit at
-   --space-gap-stack, and so does the content they act on. */
+/* Statement and its controls on one line.
+   §5: two controls in one molecule sit at --space-gap-stack, and so does the
+   content they act on.
+
+   An actual float, not a flex column beside the text, and the difference is
+   what happens to a long statement. Stacked, the tool column — not the words —
+   set the card's height. Side by side in a flex row they cost one button's
+   height instead of two, but they also take a fixed bite out of every line, so
+   a long statement is squeezed into a narrow column and grows taller again.
+   Floated, the first two lines wrap around the controls and every line after
+   runs the full width: short statements get the condensed card, long ones keep
+   their measure.
+
+   The price is source order — a float only works if it comes first — so the
+   controls precede the text in the DOM. Each one names its statement in its
+   accessible label, and the box's hidden heading is announced before either,
+   so the reading stays unambiguous. */
 .musie-card__row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-gap-stack);
+  /* Contains the float, so the card is never shorter than its controls. */
+  display: flow-root;
 }
 
-.musie-card__main {
-  flex: 1 1 0;
-  min-inline-size: 0;
+/* Only while editing, when the controls — and so the float — are gone. */
+.musie-card__editor {
   display: flex;
   flex-direction: column;
   gap: var(--space-gap-related);
 }
 
 .musie-card__tools {
-  flex: none;
+  float: inline-end;
+  margin-inline-start: var(--space-gap-stack);
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
   gap: var(--space-gap-stack);
 }
 
 /* At size="min" the system already owes the button --sp-2 of clear space on
    every side for 2.5.8, and two of those margins meet at exactly
-   --space-gap-stack. Adding the gap on top would double it. */
+   --space-gap-stack on either axis. Adding the gap on top would double it. */
 .musie-card__tools[data-size="min"] { gap: 0; }
 
 .musie-card__chevron svg { transition: transform var(--motion-toggle); }
