@@ -19,6 +19,7 @@ Design with this folder attached, and it sets the order of work.
 | [`11-toast.md`](11-toast.md) | Toast, specified in §07's format | Becomes §7.23 of `07-components.md`, and `docs/11-toast.md` |
 | [`12-component-gaps.md`](12-component-gaps.md) | Five decided changes to Layer 1 and Layer 2, each with the exact edit | Apply, then file at `docs/12-component-gaps.md` |
 | [`13-draggable-list.md`](13-draggable-list.md) | **Draggable List**, specified in §07's format — twelve states, in a matrix | Becomes §7.24, and `docs/13-draggable-list.md` |
+| [`14-reflect-step.md`](14-reflect-step.md) | How the interactive screen goes into the prototype's **Reflect** step, replacing the voice branch | Follow it when building step 4 |
 | [`workspace/`](workspace) | The record · transcribe · edit screen as source, and the component inside it | Read `workspace/README.md` |
 | [`toast/Toast.tsx`](toast/Toast.tsx) | Working component source, in the package's conventions | Drop into `components/`, add two exports to `index.ts` |
 | [`toast/toast.css`](toast/toast.css) | The §23 stylesheet block | Append to `components/musy-components.css` after §22 |
@@ -44,6 +45,12 @@ hand — which is what makes it a component rather than a composition. And
 **Toast**: the system says twice that it has no toast, yet Layer 1 ships
 `--z-toast` ranked above `--z-sheet` with a written rationale. A layer with no
 consumer.
+
+**One integration.** `14-reflect-step.md` says how the screen becomes step 4 of
+the prototype: the voice branch of Reflect stops capturing *audio* and starts
+capturing *words* the user can see and fix. It names what moves in, what is demo
+chrome and stays behind, and four things still to decide — starting with the
+fact that a reflection is one answer and the list produces several statements.
 
 **Five things to change in the system itself.** Two are documentation — §5.4's
 wording and the palette's step-9 comment. Two are small component changes to

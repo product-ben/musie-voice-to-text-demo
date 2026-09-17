@@ -34,6 +34,11 @@ And **Toast** as §7.23. `11-toast.md` is the spec; `toast/Toast.tsx` and
 **Five decided changes to Layer 1 and Layer 2.** `12-component-gaps.md`, each
 with the exact edit. Four are changes; one is a defect.
 
+**One integration guideline.** `14-reflect-step.md` — how the interactive screen
+becomes step 4 of the prototype, replacing Reflect's voice branch. It has four
+open items at the end that are product decisions, not layout ones. Raise them
+rather than deciding them.
+
 ## Do it in this order
 
 1. **Read `10-layout.md` first**, in full. Everything else refers to it, and its
@@ -53,9 +58,11 @@ with the exact edit. Four are changes; one is a defect.
    `workspace/README.md` first — it names three things in the implementation
    that look wrong until you know why, and one of them (the text must stay a
    plain block) fails silently if you get it wrong.
-7. **File the four Layer 3 docs** at `docs/10-layout.md`, `docs/11-toast.md`,
-   `docs/12-component-gaps.md`, `docs/13-draggable-list.md`, and add a Layer 3
-   section to `docs/README.md`.
+7. **File the five Layer 3 docs** at `docs/10-layout.md`, `docs/11-toast.md`,
+   `docs/12-component-gaps.md`, `docs/13-draggable-list.md`,
+   `docs/14-reflect-step.md`, and add a Layer 3 section to `docs/README.md`.
+   `14` is an integration note rather than a rule — file it with the others, but
+   it belongs to the prototype, not to the system.
 8. **Log the deltas** in `02-deltas.md` and anything unresolved in
    `06-open-questions.md`, the way the package already does.
 
