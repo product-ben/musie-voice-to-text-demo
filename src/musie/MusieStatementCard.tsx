@@ -5,6 +5,16 @@ import { CtaButton } from "../../reference/musie260917/components/CtaButton";
 import { IconButton } from "../../reference/musie260917/components/IconButton";
 import type { DropMode, Sentence } from "../transcript/types";
 
+/**
+ * §10.8's dense-list exception: a statement short enough to scan sits at
+ * body-sm; anything longer goes back to the §4 floor, so a long statement is
+ * never small. Counted in characters because that is the test an agent can
+ * apply without rendering anything.
+ */
+const SCANNABLE_CHARS = 80;
+export const statementStep = (text: string) =>
+  text.length <= SCANNABLE_CHARS ? "body-sm" : "body-md";
+
 type Props = {
   sentence: Sentence;
   position: number;
@@ -91,7 +101,57 @@ export function MusieStatementCard({
       // the element the system already renders, not a wrapper around it.
       render={<article ref={registerRef} {...(editable && !editing ? cardProps : {})} />}
     >
-      <div className="musie-card__row">
+      {/* §10.4: the text leads in the DOM and floats a spacer the size of the
+          control cluster; the controls sit absolutely in the gap it leaves.
+          Same picture as floating the controls themselves, but a screen reader
+          meets the statement before the buttons that act on it. data-size is
+          here as well as on the tools, because the row is what sizes the
+          spacer. */}
+      <div className="musie-card__row" data-size={toolSize}>
+        {editing ? (
+          <div className="musie-card__editor">
+            <div className="musy-field">
+              <label className="musy-field__label" htmlFor={fieldId}>
+                Statement {position}
+              </label>
+              <textarea
+                id={fieldId}
+                className="musy-field__control musy-field__control--textarea"
+                rows={3}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                data-filled={draft ? "" : undefined}
+              />
+              <p className="musy-field__description">
+                Saving re-runs the sentence-final hook with the corrected text.
+              </p>
+            </div>
+            {/* §10.6: right-aligned with Save outermost — the page is
+                thumb-first, and on a phone the right edge is where a
+                right-handed thumb lands. Discard leads in the DOM so the tab
+                order matches the screen. */}
+            <div className="musie-card__actions musie-card__actions--end">
+              <CtaButton variant="secondary" onClick={discard}>
+                Discard
+              </CtaButton>
+              <CtaButton
+                variant={edited ? "primary" : "secondary"}
+                disabled={!edited}
+                onClick={save}
+              >
+                Save
+              </CtaButton>
+            </div>
+          </div>
+        ) : (
+          /* A plain block, deliberately: a flex or grid container establishes
+             its own formatting context and would step around the spacer
+             instead of wrapping its lines beside it. */
+          <p className="musie-card__text" data-type-step={statementStep(sentence.text)}>
+            {sentence.text}
+          </p>
+        )}
+
         {editable && !editing && (
           <div className="musie-card__tools" data-size={toolSize}>
             <IconButton
@@ -116,55 +176,10 @@ export function MusieStatementCard({
             />
           </div>
         )}
-        {editing ? (
-          <div className="musie-card__editor">
-            <div className="musy-field">
-              <label className="musy-field__label" htmlFor={fieldId}>
-                Statement {position}
-              </label>
-              <textarea
-                id={fieldId}
-                className="musy-field__control musy-field__control--textarea"
-                rows={3}
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                data-filled={draft ? "" : undefined}
-              />
-              <p className="musy-field__description">
-                Saving re-runs the sentence-final hook with the corrected text.
-              </p>
-            </div>
-            {/* Right-aligned with Save outermost: the page is thumb-first, and
-                on a phone the right edge is where a right-handed thumb lands.
-                Discard leads in the DOM so the tab order matches the screen
-                rather than contradicting it — same as the accordion. */}
-            <div className="musie-card__actions musie-card__actions--end">
-              <CtaButton variant="secondary" onClick={discard}>
-                Discard
-              </CtaButton>
-              <CtaButton
-                variant={edited ? "primary" : "secondary"}
-                disabled={!edited}
-                onClick={save}
-              >
-                Save
-              </CtaButton>
-            </div>
-          </div>
-        ) : (
-          /* A plain block, deliberately: a flex or grid container establishes
-             its own formatting context and would step around the float instead
-             of wrapping its lines beside it. */
-          <p className="musie-card__text" data-type-step="body-md">
-            {sentence.text}
-          </p>
-        )}
       </div>
 
       {editable && !editing && menuOpen && (
-        // Right-aligned under the chevron that opened them, with Edit
-        // outermost. Delete leads in the DOM so the tab order matches what is
-        // on screen rather than contradicting it.
+        // §10.6 again: Edit outermost, Delete leading in the DOM.
         <div className="musie-card__actions musie-card__actions--end" id={menuId}>
           <CtaButton variant="ghost" leadingIcon={Trash2} data-no-drag="" onClick={onDelete}>
             Delete

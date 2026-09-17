@@ -129,26 +129,56 @@ body {
   border: 0;
 }
 
-/* Statement and its controls on one line.
+/* Statement and its controls on one line — §10.4.
    §5: two controls in one molecule sit at --space-gap-stack, and so does the
    content they act on.
 
-   An actual float, not a flex column beside the text, and the difference is
-   what happens to a long statement. Stacked, the tool column — not the words —
-   set the card's height. Side by side in a flex row they cost one button's
-   height instead of two, but they also take a fixed bite out of every line, so
-   a long statement is squeezed into a narrow column and grows taller again.
-   Floated, the first two lines wrap around the controls and every line after
-   runs the full width: short statements get the condensed card, long ones keep
-   their measure.
+   The text leads in the DOM and floats a SPACER the size of the control
+   cluster; the controls are positioned into the gap it leaves. Floating the
+   controls themselves works too and is one rule shorter, but a float only
+   operates from the front of the flow, which would put both buttons ahead of
+   the sentence they act on for a screen reader. This way the picture and the
+   reading order agree.
 
-   The price is source order — a float only works if it comes first — so the
-   controls precede the text in the DOM. Each one names its statement in its
-   accessible label, and the box's hidden heading is announced before either,
-   so the reading stays unambiguous. */
+   Why a float at all, with the measurements that decided it — a card at a
+   390px viewport, measured three ways:
+
+     text                stacked   flex row   floated
+     one or two lines      154px      104px      104px
+     six lines            ~184px      322px      213px
+
+   Stacked, the control column sets the height and every card is the same
+   height whatever it says. A flex row fixes that but takes the same bite out
+   of EVERY line, so a long statement is squeezed into a narrow column and
+   grows tall again. Floated, only the lines beside the controls are narrowed
+   and the rest run full width. */
 .musie-card__row {
-  /* Contains the float, so the card is never shorter than its controls. */
+  /* flow-root contains the spacer, so the card is never shorter than its
+     controls even when the statement is one line. relative is what the
+     controls position against. */
   display: flow-root;
+  position: relative;
+}
+
+/* The cluster's own footprint, so the spacer and the controls cannot drift
+   apart. At size="min" the system already owes each button --sp-2 on every
+   side for 2.5.8, which is part of the width it occupies. */
+.musie-card__row[data-size="primary"] {
+  --musie-tools-inline: calc(var(--target-primary) * 2 + var(--space-gap-stack));
+  --musie-tools-block: var(--target-primary);
+}
+
+.musie-card__row[data-size="min"] {
+  --musie-tools-inline: calc((var(--target-min) + var(--sp-2) * 2) * 2);
+  --musie-tools-block: calc(var(--target-min) + var(--sp-2) * 2);
+}
+
+/* The spacer: the cluster plus the gap the text owes it. */
+.musie-card__text::before {
+  content: "";
+  float: inline-end;
+  inline-size: calc(var(--musie-tools-inline) + var(--space-gap-stack));
+  block-size: var(--musie-tools-block);
 }
 
 /* Only while editing, when the controls — and so the float — are gone. */
@@ -159,8 +189,9 @@ body {
 }
 
 .musie-card__tools {
-  float: inline-end;
-  margin-inline-start: var(--space-gap-stack);
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
   display: flex;
   align-items: flex-start;
   gap: var(--space-gap-stack);
@@ -321,7 +352,10 @@ body {
    glyph, the label and the meter all change on the same click, so an instant
    change is the consistent one. */
 .musie-record[data-state="ready"] {
-  align-self: flex-start;
+  /* §10.6: a primary CTA is right-aligned to its parent. The record control is
+     this screen's primary action, so when it hugs, it hugs the right edge —
+     where a right-handed thumb already is. */
+  align-self: flex-end;
   min-inline-size: 0;
 }
 

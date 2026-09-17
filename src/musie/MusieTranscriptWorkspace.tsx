@@ -11,7 +11,7 @@ import { IDLE_STOP_MS, SESSION_SECONDS } from "../config";
 import { useDragList } from "../hooks/useDragList";
 import type { useTranscription } from "../hooks/useTranscription";
 import type { Sentence } from "../transcript/types";
-import { MusieStatementCard } from "./MusieStatementCard";
+import { MusieStatementCard, statementStep } from "./MusieStatementCard";
 import { MusieToast } from "./MusieToast";
 import { useCoarsePointer } from "./useCoarsePointer";
 
@@ -127,7 +127,7 @@ export function MusieTranscriptWorkspace({ session, canRecord, onStart }: Props)
             headlineStep="label-md"
           >
             {interim ? (
-              <p className="musie-card__text" data-type-step="body-md">{interim}</p>
+              <p className="musie-card__text" data-type-step={statementStep(interim)}>{interim}</p>
             ) : (
               <span className="musie-dots" aria-label="Waiting for words">
                 <span /><span /><span />

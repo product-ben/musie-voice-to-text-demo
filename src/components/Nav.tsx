@@ -2,7 +2,7 @@ const PAGES = [
   { href: "#/", label: "Demo" },
   { href: "#/lab", label: "Segmentation lab" },
   { href: "#/musie", label: "Musy design system" },
-  { href: "#/rules", label: "Layout rules" },
+  { href: "#/rules", label: "Layout decisions" },
 ];
 
 export function Nav({ route }: { route: string }) {

@@ -69,7 +69,7 @@ export function Musie({ rules = false }: { rules?: boolean } = {}) {
         <div className="musie-intro">
           <header className="musie-page__head">
             <h1 className="musie-page__title" data-type-step="heading-lg">
-              {rules ? "Layout rules — open questions" : "The transcript workspace, in Musy"}
+              {rules ? "Layout rules — the decisions" : "The transcript workspace, in Musy"}
             </h1>
             <Switch
               label={theme === "dark" ? "Dark" : "Light"}
@@ -83,8 +83,8 @@ export function Musie({ rules = false }: { rules?: boolean } = {}) {
 
           <p className="musie-prose" data-type-step="body-md">
             {rules
-              ? "Every question docs/10-layout-rules.md and 11-additional-components.md " +
-                "leave open, as a side-by-side. The left column is what ships today."
+              ? "Each decision behind Layer 3, as the side-by-side that settled it. " +
+                "The rules themselves are in reference/musie260917/docs/10-layout.md."
               : "The same component as on the Demo page, with the same hooks behind it. " +
                 "Every part you can see is a released Musy component — Record Button, " +
                 "Content Box, Message, Switch, CTA Button, Icon Button, Badge — and the " +

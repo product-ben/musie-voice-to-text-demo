@@ -22,12 +22,12 @@ export function MusieRules() {
       <Question
         id="Q3"
         title="How big are a card's controls under a cursor?"
-        note="Ships as the left one on a cursor and the right one on a thumb. §5.4 reserves --target-min for inline controls in prose; at 24px it still clears SC 2.5.8, so outside prose this is comfort, not access."
+        note="DECIDED: keep the split, and widen §5.4 so --target-min also covers card controls on a fine pointer. 24px clears SC 2.5.8, so outside prose this was a comfort rule, not an access one. See gaps §1."
       >
-        <Side label='size="min" — 24px, what a desktop sees'>
+        <Side label='Decided: size="min" — 24px, what a cursor sees'>
           <DemoCard text={SHORT} toolSize="min" />
         </Side>
-        <Side label='size="primary" — 44px, what a phone sees'>
+        <Side label='Decided: size="primary" — 44px, what a thumb sees'>
           <DemoCard text={SHORT} toolSize="primary" />
         </Side>
       </Question>
@@ -35,12 +35,12 @@ export function MusieRules() {
       <Question
         id="Q8"
         title="Statement text: the §4 floor, or one step down?"
-        note="You asked for body-sm; the answer taken was body-md, because §4 bars body-sm from essential prose. Both shown at the same width so the difference is only the step."
+        note="DECIDED: body-sm for an item of 80 characters or fewer, body-md above it — so a long item is never small, and the test is a character count rather than a judgement. Both cards below hold the same long text, so the left is what ships for it. See L8."
       >
-        <Side label="body-md — 17px at 393, the §4 floor">
+        <Side label="146 characters → body-md. What ships for this text.">
           <DemoCard text={LONG} toolSize="primary" step="body-md" />
         </Side>
-        <Side label="body-sm — 15px at 393, barred from prose by §4">
+        <Side label="The same text at body-sm — what a short statement gets">
           <DemoCard text={LONG} toolSize="primary" step="body-sm" />
         </Side>
       </Question>
@@ -48,15 +48,15 @@ export function MusieRules() {
       <Question
         id="Q2"
         title="Which button leads in the tab order?"
-        note="Both rows look identical. Tab through each one: the left gives Delete first, matching the screen; the right gives Edit first, matching importance. Only one can be true at a time."
+        note="DECIDED: the left. DOM order always follows visual order, with no exception for destructive actions — the undo toast already makes Delete reversible for six seconds, which beats a confirm nobody reads. See L6."
       >
-        <Side label="Ships: DOM follows the screen — Delete, then Edit">
+        <Side label="Decided: DOM follows the screen — Delete, then Edit">
           <div className="musie-card__actions musie-card__actions--end">
             <CtaButton variant="ghost" leadingIcon={Trash2}>Delete</CtaButton>
             <CtaButton variant="ghost" leadingIcon={Pencil}>Edit</CtaButton>
           </div>
         </Side>
-        <Side label="Alternative: DOM follows importance — Edit, then Delete">
+        <Side label="Rejected: DOM follows importance — Edit, then Delete">
           <div className="musie-card__actions musie-card__actions--end musie-rules__reversed">
             <CtaButton variant="ghost" leadingIcon={Pencil}>Edit</CtaButton>
             <CtaButton variant="ghost" leadingIcon={Trash2}>Delete</CtaButton>
@@ -67,14 +67,14 @@ export function MusieRules() {
       <Question
         id="Q4"
         title="Which purple marks a drop target?"
-        note="Both are the accent-2 family. Measured against this card: the solid is 2.01:1, the -border step is 4.25:1. 1.4.11 asks 3:1 of a meaningful graphic — but Layer 1's own comment on step 9 lists 'meaningful graphics' among its uses."
+        note="DECIDED: the left ships, and Layer 1's step-9 comment is corrected rather than the colour — step 9 is a fill that carries its own -on foreground, never a graphic standing alone on a surface. Moving it would darken all four accent solids. See gaps §5."
       >
-        <Side label="Ships: -border (purple-edge) — 4.25:1">
+        <Side label="Decided: -border (purple-edge) — 4.25:1">
           <div className="musie-rules__drop">
             <div className="musie-drop" />
           </div>
         </Side>
-        <Side label="As asked: the solid (purple-9) — 2.01:1">
+        <Side label="Rejected: the solid (purple-9) — 2.01:1">
           <div className="musie-rules__drop">
             <div className="musie-drop musie-rules__drop--solid" />
           </div>
@@ -84,9 +84,9 @@ export function MusieRules() {
       <Question
         id="Q5"
         title="Does the record control change width with its state?"
-        note="Ships as the left pair. §7.22 pins the ready state so the button cannot jump when it goes live; you asked for exactly that jump. The right pair is what the component does untouched."
+        note="DECIDED: the left becomes the component's default — §7.22 drops the anti-jump floor rather than adding an opt-in. The right pair is what it does today. Combined with L6, a hugging primary CTA hugs the RIGHT edge. See gaps §4."
       >
-        <Side label="Ships: ready hugs, recording takes the column">
+        <Side label="Decided: ready hugs, recording takes the column">
           <div className="musie-stack">
             <RecordButton state="ready" className="musie-record" readyLabel="Record now" />
             <RecordButton
@@ -98,7 +98,7 @@ export function MusieRules() {
             />
           </div>
         </Side>
-        <Side label="§7.22 untouched: one width, both states">
+        <Side label="§7.22 today: one width, both states">
           <div className="musie-stack">
             <RecordButton state="ready" readyLabel="Record now" />
             <RecordButton
@@ -114,9 +114,9 @@ export function MusieRules() {
       <Question
         id="Q7"
         title="What gives when the record control runs out of room?"
-        note="Both in the same phone-width column. The default copy overflows its own box and clips the readout, which §7.22 says must never be what gives — measured here at scrollWidth 341 against clientWidth 278. The shipped workaround is shorter copy."
+        note="DECIDED: shorter default copy. recordingLabel defaults to 'Recording'. It moves the cliff rather than removing it — a long German string can still reach it, and then the label shrink allowance is the follow-up fix. See gaps §3."
       >
-        <Side label='Ships: recordingLabel="Recording" — fits'>
+        <Side label='Decided: recordingLabel="Recording" — fits'>
           <div className="musie-rules__narrow">
             <RecordButton
               state="recording"
@@ -142,20 +142,20 @@ export function MusieRules() {
       <Question
         id="Q1"
         title="Reading order on a card"
-        note="The controls float, and a float only works from the front of the flow — so a screen reader meets them before the sentence they act on. Turn on VoiceOver and walk this card: heading, drag, chevron, then the text."
+        note="DECIDED: neither of the two originally offered. The text now leads in the DOM and floats a SPACER the size of the control cluster; the controls sit absolutely in the gap. Same picture, same card height, reading order correct. The left card below is that. See L4."
       >
-        <Side label="Ships: floated controls, controls-first in the DOM">
+        <Side label="Ships: text first in the DOM, controls positioned into a floated spacer">
           <DemoCard text={LONG} toolSize="primary" />
         </Side>
-        <Side label="Alternative: text first, controls stacked — 154px instead of 104px">
+        <Side label="Rejected: controls stacked under the text — 154px instead of 97px">
           <DemoCard text={LONG} toolSize="primary" stacked />
         </Side>
       </Question>
 
       <Message
         variant="info"
-        headline="Nothing on this page is mocked"
-        text="Every control is the released component from musie260917, given props. The only additions are the two comparison wrappers, which are token-only."
+        headline="Every question here is decided"
+        text="The rules are in reference/musie260917/docs/10-layout.md, the new Toast in 11-toast.md, and the Layer 1 and Layer 2 changes they depend on in 12-component-gaps.md. Nothing on this page is mocked — every control is the released component, given props."
       />
     </div>
   );
