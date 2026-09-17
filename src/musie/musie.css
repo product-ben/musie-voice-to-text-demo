@@ -305,6 +305,32 @@ body {
   .musie-dots span { animation: none; opacity: 0.55; }
 }
 
+/* ── Record control ───────────────────────────────────────────────────────
+   The width is a state cue: ready hugs its label and sits compact, recording
+   takes the whole column.
+
+   This is a deliberate deviation, and worth naming. §7.22 holds the ready
+   state at `min-inline-size: min(18ch, 100%)` for the stated reason that "the
+   button does not jump wider the moment it goes live" — the jump is exactly
+   what is wanted here, so the floor is released while ready. Everything else
+   the component sets is untouched: `max-inline-size: 100%` still caps the box,
+   which is what lets the meter shrink once it is live.
+
+   No transition. `fit-content` does not interpolate to a stretched width, so a
+   width animation would either not run or snap at the end anyway — and the
+   glyph, the label and the meter all change on the same click, so an instant
+   change is the consistent one. */
+.musie-record[data-state="ready"] {
+  align-self: flex-start;
+  min-inline-size: 0;
+}
+
+/* Recording keeps the column's default stretch — stated so the pair reads
+   together rather than one half looking like an oversight. */
+.musie-record[data-state="recording"] {
+  align-self: stretch;
+}
+
 /* Caption under the record control. §4 allows body-sm for metadata, which is
    what this is — the statement text stays at the body floor. */
 .musie-note {

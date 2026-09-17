@@ -297,12 +297,20 @@ every chunk; accumulating it in a component would mean building state during
 render. It is set in the same event as `level`, so React batches the two and it
 costs no extra render.
 
-`block` is passed explicitly. The button is a column-flex item and would stretch
-to the full width regardless, but saying so makes the width a decision: both
-states measure the same, so the button cannot jump wider the moment it goes
-live, and §7.22's "extra room goes to the meter" holds. Measured at 390px and
-1280px: **310×46 and 592×47 in both states**, label never clipped, all 12 bars
-visible.
+**The width is a state cue.** Ready hugs its label; recording takes the column.
+Measured at 390px / 1280px: **179×46 → 310×46** and **184×47 → 592×47**.
+
+That is a deliberate deviation. §7.22 holds the ready state at
+`min-inline-size: min(18ch, 100%)` for the stated reason that "the button does
+not jump wider the moment it goes live" — the jump is the point here, so the
+floor is released while ready. Nothing else the component sets is touched:
+`max-inline-size: 100%` still caps the box, which is what lets the meter shrink
+once it is live. No transition, because `fit-content` does not interpolate to a
+stretched width — and the glyph, the label and the meter all change on the same
+click, so an instant change is the consistent one.
+
+`recordingLabel` is shortened to "Recording". At the default "Recording
+Running" the live state does not fit a phone column — see finding 6.
 
 ### Spacing, audited against §5
 
@@ -366,7 +374,21 @@ never amended — so they are reported here instead.
    route is reproducing `.musy-sr-only`'s declarations in the page's own CSS.
    `Switch` already has exactly this prop, spelled `labelHidden`; Content Box
    wants the same.
-5. **The accent solids do not clear 3:1 as graphics.** `--interactive-accent-
+5. **Record Button's degradation order inverts below ~353px.** §7.22 is explicit
+   that the meter is the elastic part and the readout must never be what gives:
+   "the readout is the only thing a screen-reader user gets — so when the column
+   is narrower than the live content, the bars are what give." Measured in this
+   page's 310px phone column with the default copy: the meter correctly
+   collapses to 0, and then the **readout overflows the content box by 44px and
+   is clipped** — `scrollWidth` 329 against `clientWidth` 308. The label carries
+   `flex: 0 0 auto` and the meter is already at zero, so the remaining deficit
+   has nowhere to go. §7.22 reports measuring at 340px, and the shortfall starts
+   just above that. Worked around here with `recordingLabel="Recording"`, which
+   is the component's own lever and brings it to `scrollWidth` 308 in the same
+   column with 27px of meter still showing. A fix in the component would be a
+   shrink allowance on the label before the readout, or an ellipsis that engages
+   while the meter is at zero rather than after.
+6. **The accent solids do not clear 3:1 as graphics.** `--interactive-accent-
    placeholder2` is `purple-9` (#CCA6C7), and Layer 1's own comment on step 9
    reads "Solid fill — buttons, filled chips, **meaningful graphics**". Measured
    as a graphic it is **1.85:1 against the page and 2.01:1 against a card** —

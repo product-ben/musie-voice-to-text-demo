@@ -148,15 +148,18 @@ export function MusieTranscriptWorkspace({ session, canRecord, onStart }: Props)
           maxSeconds={SESSION_SECONDS}
           levels={levels}
           disabled={!canRecord}
-          // It is a column-flex item, so it would stretch to the full width
-          // whatever this said. Saying it means the width is a decision: both
-          // states are the same size, so the button cannot jump wider the
-          // moment it goes live, and §7.22's "extra room goes to the meter".
-          block
+          // Not `block`: the width is a state cue here. Ready hugs its label,
+          // recording takes the column. See musie.css.
+          className="musie-record"
           onToggle={() =>
             isRunning ? stop("manual") : onStart({ keepExisting: hasRecorded })
           }
           readyLabel={hasRecorded ? "Record more" : "Record now"}
+          // "Recording Running" does not fit a phone column: at 310px the meter
+          // collapses to nothing and the readout — which §7.22 says must never
+          // be what gives — overflows by 44px and clips. `recordingLabel` is
+          // the component's own lever for this. See README.
+          recordingLabel="Recording"
         />
 
         <p className="musie-note" data-type-step="body-sm">
