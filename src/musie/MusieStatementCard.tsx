@@ -134,16 +134,20 @@ export function MusieStatementCard({
                 Saving re-runs the sentence-final hook with the corrected text.
               </p>
             </div>
-            <div className="musie-card__actions">
+            {/* Right-aligned with Save outermost: the page is thumb-first, and
+                on a phone the right edge is where a right-handed thumb lands.
+                Discard leads in the DOM so the tab order matches the screen
+                rather than contradicting it — same as the accordion. */}
+            <div className="musie-card__actions musie-card__actions--end">
+              <CtaButton variant="secondary" onClick={discard}>
+                Discard
+              </CtaButton>
               <CtaButton
                 variant={edited ? "primary" : "secondary"}
                 disabled={!edited}
                 onClick={save}
               >
                 Save
-              </CtaButton>
-              <CtaButton variant="secondary" onClick={discard}>
-                Discard
               </CtaButton>
             </div>
           </div>

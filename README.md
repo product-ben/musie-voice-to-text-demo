@@ -235,7 +235,7 @@ doc sets:
 | Errors, warnings | **Message**, each with an explicit `live` region |
 | Countdown, stop reason | **Badge** |
 | Drag, show more | **Icon Button**, ghost, in a stack on the right |
-| Edit, delete, save, discard | **CTA Button** — ghost with a leading icon in the accordion, right-aligned with Edit outermost; Save turns primary only once there is a change to save |
+| Edit, delete, save, discard | **CTA Button** — right-aligned rows, with the action you are most likely to want outermost: Edit in the accordion, Save in the editor. Save turns primary only once there is a change to save |
 | Data layer, theme | **Switch** |
 | Undo | a **toast** — the one pattern the system has no component for (see G5 below) |
 
@@ -258,6 +258,12 @@ out of *every* line and grown the card back:
 | One or two lines (touch) | 154px | 104px | **104px** |
 | Six lines (touch) | ~184px | 322px | **213px** |
 | Any length (desktop, 1–2 lines) | 130px | 90px | **90px** |
+
+Both action rows are right-aligned with the likely action outermost — Edit in
+the accordion, Save in the editor — because the page is thumb-first and on a
+phone the right edge is where a right-handed thumb lands. The other button
+leads in the DOM in each case, so the tab order matches the screen rather than
+contradicting it.
 
 Two consequences worth knowing. The controls come **before** the text in the
 DOM, because a float only works from the front of the flow — each names its
