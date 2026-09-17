@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Timer } from "lucide-react";
 // Imported per file rather than through the package barrel: the barrel also
 // pulls in Lightbox and MusicPlayer, two components that do not type-check
 // against the base-ui version the package itself declares. See README.
-import { Badge } from "../../reference/musie_260915/components/Badge";
-import { ContentBox } from "../../reference/musie_260915/components/ContentBox";
-import { Message } from "../../reference/musie_260915/components/Message";
-import { Switch } from "../../reference/musie_260915/components/Switch";
-import { VoiceNote } from "../../reference/musie_260915/components/VoiceNote";
+import { Badge } from "../../reference/musie260917/components/Badge";
+import { ContentBox } from "../../reference/musie260917/components/ContentBox";
+import { Message } from "../../reference/musie260917/components/Message";
+import { Switch } from "../../reference/musie260917/components/Switch";
+import { RecordButton } from "../../reference/musie260917/components/RecordButton";
 import { IDLE_STOP_MS, SESSION_SECONDS } from "../config";
 import { useDragList } from "../hooks/useDragList";
 import type { useTranscription } from "../hooks/useTranscription";
@@ -24,19 +23,16 @@ type Props = {
   onStart: (options: { keepExisting: boolean }) => void;
 };
 
-const BARS = 5;
-// Middle bars react most, so the meter reads as a shape rather than a block.
-const BAR_WEIGHTS = [0.45, 0.75, 1, 0.75, 0.45];
-
 /**
  * The transcript workspace, dressed in Musy.
  *
  * Same component, same behaviour, same hooks — only the surface changes. Each
  * part is a released design-system component rather than a restyled one:
  *
- *   record control   Voice Note    a controlled recorder that never touches
- *                                  getUserMedia, which is exactly this app's
- *                                  split: the hook owns the microphone
+ *   record control   Record Button §7.22 — one control, two states, and it
+ *                                  never touches getUserMedia, which is exactly
+ *                                  this app's split: the hook owns the
+ *                                  microphone and the 60-second timer
  *   statement        Content Box   the card, with a real heading
  *   waiting          Content Box   outline="dashed" — the system's own reading
  *                                  of "provisional / awaiting content" (G2)
@@ -47,7 +43,7 @@ const BAR_WEIGHTS = [0.45, 0.75, 1, 0.75, 0.45];
 export function MusieTranscriptWorkspace({ session, canRecord, onStart }: Props) {
   const {
     status, sentences, interim, pending, error, warning, stopReason,
-    level, speaking, secondsLeft, stop,
+    levels, secondsLeft, stop,
     editSentence, combineSentences, moveSentence, deleteSentence,
     undoLabel, undo, dismissUndo,
   } = session;
@@ -144,54 +140,41 @@ export function MusieTranscriptWorkspace({ session, canRecord, onStart }: Props)
       </section>
 
       <section className="musie-stack" aria-label="Recording">
-        <VoiceNote
-          label="Speak your statements"
-          state={isRunning ? "recording" : "idle"}
+        <RecordButton
+          state={isRunning ? "recording" : "ready"}
+          // The app owns the clock and the ceiling, as §7.22 requires; the
+          // button only draws them.
           elapsed={SESSION_SECONDS - secondsLeft}
+          maxSeconds={SESSION_SECONDS}
+          levels={levels}
           disabled={!canRecord}
-          onRecordStart={() => onStart({ keepExisting: hasRecorded })}
-          onRecordStop={() => stop("manual")}
-          idleText={
-            hasRecorded
-              ? "Carry on — new statements are added to the end of the list."
-              : "Press record and start talking. Each pause finishes a statement."
+          // It is a column-flex item, so it would stretch to the full width
+          // whatever this said. Saying it means the width is a decision: both
+          // states are the same size, so the button cannot jump wider the
+          // moment it goes live, and §7.22's "extra room goes to the meter".
+          block
+          onToggle={() =>
+            isRunning ? stop("manual") : onStart({ keepExisting: hasRecorded })
           }
-          recordLabel={hasRecorded ? "Record more" : "Record now"}
-          stopLabel="Stop recording"
-          recordingWord={status === "connecting" ? "Connecting" : "Recording"}
-          description={
-            `Stops on its own after ${SESSION_SECONDS} seconds, or after ` +
-            `${IDLE_STOP_MS / 1000} seconds of silence.`
-          }
+          readyLabel={hasRecorded ? "Record more" : "Record now"}
         />
 
-        <div className="musie-row">
-          {isRunning && (
-            <>
-              <Badge variant="primary-subtle" glyph={Timer}>
-                {secondsLeft}s left
-              </Badge>
-              {/* Decorative: Voice Note's own status region announces the state. */}
-              <span
-                className="musie-meter"
-                data-speaking={speaking ? "" : undefined}
-                aria-hidden="true"
-              >
-                {BAR_WEIGHTS.slice(0, BARS).map((weight, index) => (
-                  <span
-                    key={index}
-                    style={{ transform: `scaleY(${Math.min(1, 0.12 + level * 2.6 * weight)})` }}
-                  />
-                ))}
-              </span>
-            </>
-          )}
-          {!isRunning && stopReason && (
+        <p className="musie-note" data-type-step="body-sm">
+          {hasRecorded
+            ? "New statements are added to the end of the list. "
+            : "Each pause finishes a statement. "}
+          Stops on its own after {SESSION_SECONDS} seconds, or after{" "}
+          {IDLE_STOP_MS / 1000} seconds of silence.
+        </p>
+
+        {/* A manual stop explains itself; the other three do not. */}
+        {!isRunning && stopReason && stopReason !== "manual" && (
+          <div className="musie-row">
             <Badge variant={stopReason === "error" ? "error" : "neutral"}>
               {stopWord(stopReason)}
             </Badge>
-          )}
-        </div>
+          </div>
+        )}
 
         {error && (
           <Message
@@ -237,11 +220,10 @@ export function MusieTranscriptWorkspace({ session, canRecord, onStart }: Props)
   );
 }
 
-function stopWord(reason: NonNullable<ReturnType<typeof useTranscription>["stopReason"]>) {
+function stopWord(reason: "timeout" | "silence" | "error") {
   if (reason === "timeout") return `${SESSION_SECONDS}-second limit reached`;
   if (reason === "silence") return `Stopped after ${IDLE_STOP_MS / 1000}s of silence`;
-  if (reason === "error") return "Stopped by the error above";
-  return "Stopped";
+  return "Stopped by the error above";
 }
 
 /**

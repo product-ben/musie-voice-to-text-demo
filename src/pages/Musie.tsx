@@ -1,15 +1,15 @@
 import { useEffect, useId, useState } from "react";
 import { Moon, Sun } from "lucide-react";
-import { MusyTooltipProvider } from "../../reference/musie_260915/components/IconButton";
-import { Switch } from "../../reference/musie_260915/components/Switch";
-import { CtaButton } from "../../reference/musie_260915/components/CtaButton";
-import { Message } from "../../reference/musie_260915/components/Message";
+import { MusyTooltipProvider } from "../../reference/musie260917/components/IconButton";
+import { Switch } from "../../reference/musie260917/components/Switch";
+import { CtaButton } from "../../reference/musie260917/components/CtaButton";
+import { Message } from "../../reference/musie260917/components/Message";
 
 // Load order is the system's: foundations, then the staged token gaps, then
 // components. Nothing here is overridden; musie.css only arranges them.
-import "../../reference/musie_260915/tokens/musy-foundations.css";
-import "../../reference/musie_260915/tokens/musy-foundations-amendments.css";
-import "../../reference/musie_260915/components/musy-components.css";
+import "../../reference/musie260917/tokens/musy-foundations.css";
+import "../../reference/musie260917/tokens/musy-foundations-amendments.css";
+import "../../reference/musie260917/components/musy-components.css";
 import "../musie/musie.css";
 
 import { DEFAULT_MODEL, type LanguageChoice, type TranscriptionModel } from "../config";
@@ -82,9 +82,9 @@ export function Musie() {
 
           <p className="musie-prose" data-type-step="body-md">
             The same component as on the Demo page, with the same hooks behind it.
-            Every part you can see is a released Musy component — Voice Note, Content
-            Box, Message, Switch, CTA Button, Icon Button, Badge — and the only CSS
-            written for this page is the layout between them, in tokens.
+            Every part you can see is a released Musy component — Record Button,
+            Content Box, Message, Switch, CTA Button, Icon Button, Badge — and the
+            only CSS written for this page is the layout between them, in tokens.
           </p>
         </div>
 

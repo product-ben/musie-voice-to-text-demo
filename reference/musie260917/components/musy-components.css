@@ -2899,3 +2899,113 @@
   .musy-mplayer__fill,
   .musy-mplayer__thumb { background-color: Highlight; }
 }
+
+
+/* ═══ RECORD BUTTON ════════════════════════════════════════════════════════
+   §19 Voice Note's capture step, collapsed into ONE control: the primary CTA.
+   Two states on one target — ready ⇄ recording — and every switch resets the
+   clock, so there is no third "recorded" state to explain.
+
+   COMPOSED ON §04, NOT A NEW BUTTON. Same target ladder (44 / 56 / 64), same
+   six-state model, same pill. Two extra parts: the meter and the readout.
+
+   THE STATE IS NOT CARRIED BY HUE. The button stays primary while live —
+   swapping to the error family would paint a working control as a failure, and
+   §19's red-while-live belongs to a surface, not to the screen's main action.
+   Three cues change instead: the glyph (mic → stop), the label and the meter,
+   which only exists while recording (1.4.1 — it survives greyscale).
+
+   THE METER IS DECORATIVE, THE COUNTER IS NOT. Bars are aria-hidden and take
+   currentColor, so they follow the button's ink in every variant, in the
+   disabled state and in forced colours with no rule of their own. What a
+   screen-reader user gets is the readout, in a role="status" region — the
+   split §19 made between its pulsing dot and its live time.
+
+   Geometry: bar width and gap are --sp-1, the meter box is an icon step. No
+   new literals, and nothing new asked of Layer 1.                          */
+
+.musy-btn.musy-rec {
+  --musy-rec-meter: var(--icon-size-md);
+  justify-content: flex-start;
+  gap: var(--space-gap-related);
+  /* Only the READY state's content is held: enough that the button does not
+     jump wider the moment it goes live, low enough that the recording state
+     fits a 393px column — and it loses to the cap below, because a min is a
+     floor and would otherwise win against the containing block. */
+  min-inline-size: min(18ch, 100%);
+  /* The cap is what makes the meter shrink at all: a flex container's
+     shrink-to-fit width resolves to max-content, so min-inline-size: 0 on the
+     meter is a floor, not a lid, and flex shrinking never runs until the BOX is
+     bounded by its containing block. */
+  max-inline-size: 100%;
+}
+.musy-btn--comfort.musy-rec,
+.musy-btn--guided.musy-rec {
+  --musy-rec-meter: var(--icon-size-lg);
+  /* §04 widens the inline padding to --sp-6 at the larger targets, which is
+     right for a one-part button and wrong for a three-part one: 32px a side
+     pushed "Recording Running" out of a 340px column. Going BELOW the base
+     inset made the ladder optically uneven, though — the glyph of a 64px button
+     sat nearer the edge than the glyph of the 44px one above it. So every rung
+     holds the base 24px and the meter pays for the room instead. */
+  padding-inline: var(--sp-5);
+}
+
+/* THE METER IS THE ELASTIC PART. The label is a label step and must not wrap at
+   a 44px target (§04 reserves wrapping for --wrap), and the readout is the only
+   thing a screen reader gets — so when the column is narrower than the live
+   content, the bars are what give. They clip from the leading edge, which is
+   the oldest end of the signal. */
+.musy-rec > .musy-icon { flex: none; }
+.musy-rec .musy-btn__label {
+  /* flex-shrink: 0, not a small weight: shrink weighting distributes the deficit
+     across every flexible item in ONE pass, so even 1% of it lands here — and one
+     pixel is all text-overflow needs to eat three characters off a state cue.
+     The ellipsis below stays as the last resort once the meter is at zero. */
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.musy-rec__meter {
+  /* shrink 100 against the label's 1: flex distributes a deficit by base size
+     × factor, so the bars are consumed almost entirely before the label gives
+     up a character. The label only ellipsizes once the meter is gone — which is
+     the correct last resort, not the first one. */
+  flex: 1 100 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-1);
+  block-size: var(--musy-rec-meter);
+}
+
+.musy-rec__bar {
+  flex: none;
+  inline-size: var(--sp-1);
+  min-block-size: var(--sp-1);
+  border-radius: var(--radius-full);
+  background-color: currentColor;
+  transition: block-size var(--motion-toggle);
+}
+
+.musy-rec__time {
+  display: flex;
+  gap: var(--sp-2);
+  flex: none;
+  /* Tabular figures: the pair ticks once a second and must not shift the label
+     — the twitch §19 and §21 both solved. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced motion: this is the only continuously moving thing in the system, and
+   Layer 1's 1ms would strobe it rather than shorten it. Flatten the meter to a
+   still row and let the readout carry the state — the decision §19 took for its
+   pulse. !important beats the inline height, which is live data, not styling. */
+@media (prefers-reduced-motion: reduce) {
+  .musy-rec__bar { block-size: var(--sp-1) !important; transition: none; }
+}

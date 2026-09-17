@@ -203,7 +203,7 @@ finalised; combining keeps the surviving statement's timestamp.
 
 A third page renders the **same** `TranscriptWorkspace` — same hooks, same
 behaviour, same `onSentenceFinal` — dressed entirely in the Musy design system
-vendored at `reference/musie_260915`. Nothing about the other two pages changed.
+vendored at `reference/musie260917`. Nothing about the other two pages changed.
 
 Every visible part is a *released* component, imported and passed props, never
 recreated from its markup — which is the one rule the package's own handoff
@@ -211,13 +211,13 @@ doc sets:
 
 | Part of the workspace | Musy component |
 | --- | --- |
-| Record / stop control | **Voice Note** — controlled, and it never calls `getUserMedia`, which is exactly this app's split |
+| Record / stop control | **Record Button** (§7.22) — one control, two states, and it holds neither the microphone nor the 60-second timer, which is exactly this app's split |
 | A finalised statement | **Content Box**, heading kept for the outline, hidden on screen |
 | Waiting for words | **Content Box** `outline="dashed"` — the system's own reading of *provisional / awaiting content* (token gap G2) |
 | Errors, warnings | **Message**, each with an explicit `live` region |
 | Countdown, stop reason | **Badge** |
 | Drag, show more | **Icon Button**, ghost, in a stack on the right |
-| Edit, delete, save, discard | **CTA Button** — ghost with a leading icon in the accordion; Save turns primary only once there is a change to save |
+| Edit, delete, save, discard | **CTA Button** — ghost with a leading icon in the accordion, right-aligned with Edit outermost; Save turns primary only once there is a change to save |
 | Data layer, theme | **Switch** |
 | Undo | a **toast** — the one pattern the system has no component for (see G5 below) |
 
@@ -257,6 +257,28 @@ inside prose only", and these are a card's only affordances — but at 24px the
 control still clears WCAG 2.2 SC 2.5.8, so on a cursor it is a comfort call
 rather than an accessibility one. Since the controls float rather than stack,
 the statement sets the card's height, not the buttons.
+
+### The record control
+
+`RecordButton` replaced the Voice Note block, and takes three things with it:
+the countdown Badge, the hand-rolled level meter, and the "recorded" state that
+this app never had. What is left is one primary CTA that switches ready ⇄
+recording, with the component's own meter and its `0:12 · −0:48` readout.
+
+It is fully controlled, as §7.22 requires — the app keeps the microphone, the
+clock and the 60-second ceiling, and only hands over `elapsed`, `maxSeconds`
+and `levels`. `levels` is a rolling 12-value history of chunk loudness, added to
+`useTranscription` because the recorder callback is the only place that sees
+every chunk; accumulating it in a component would mean building state during
+render. It is set in the same event as `level`, so React batches the two and it
+costs no extra render.
+
+`block` is passed explicitly. The button is a column-flex item and would stretch
+to the full width regardless, but saying so makes the width a decision: both
+states measure the same, so the button cannot jump wider the moment it goes
+live, and §7.22's "extra room goes to the meter" holds. Measured at 390px and
+1280px: **310×46 and 592×47 in both states**, label never clipped, all 12 bars
+visible.
 
 ### Spacing, audited against §5
 

@@ -18,6 +18,14 @@ import { useSentences } from "./useSentences";
 
 export type Status = "idle" | "connecting" | "recording";
 
+/**
+ * How many recent chunk loudnesses to keep. A level meter needs a history, not
+ * just the newest value, and the recorder callback is the only place that sees
+ * every chunk. Collected here rather than reconstructed by a consumer, because
+ * doing it in a component would mean accumulating state during render.
+ */
+const LEVEL_HISTORY = 12;
+
 /** Why the last session ended — so the UI never has to say "it just stopped". */
 export type StopReason = "manual" | "timeout" | "silence" | "error" | null;
 
@@ -36,6 +44,8 @@ export function useTranscription() {
   const [stopReason, setStopReason] = useState<StopReason>(null);
   /** Loudness of the newest audio chunk (0–1), for the microphone meter. */
   const [level, setLevel] = useState(0);
+  /** The last LEVEL_HISTORY chunk loudnesses, newest last, for a bar meter. */
+  const [levels, setLevels] = useState<number[]>([]);
   /** True while OpenAI's VAD is hearing speech. */
   const [speaking, setSpeaking] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(SESSION_SECONDS);
@@ -65,6 +75,7 @@ export function useTranscription() {
     setPending(false);
     awaitingStatement.current = false;
     setLevel(0);
+    setLevels([]);
     setSpeaking(false);
     setStatus((previous) => {
       // Only record a reason if a session was actually running.
@@ -85,6 +96,7 @@ export function useTranscription() {
       setWarning(null);
       setStopReason(null);
       setLevel(0);
+      setLevels([]);
       setSpeaking(false);
       if (!options?.keepExisting) list.reset();
       setInterim("");
@@ -153,6 +165,12 @@ export function useTranscription() {
         recorder.current = await startRecorder((chunk, chunkLevel) => {
           connection.current?.sendAudio(chunk);
           setLevel(chunkLevel);
+          // Same event, so React batches this with setLevel: no extra render.
+          setLevels((previous) =>
+            previous.length < LEVEL_HISTORY
+              ? [...previous, chunkLevel]
+              : [...previous.slice(1), chunkLevel],
+          );
 
           const loud = chunkLevel >= CLIENT_SILENCE_LEVEL;
           // Tracked for every model, not just the ones that commit their own
@@ -235,6 +253,7 @@ export function useTranscription() {
     warning,
     stopReason,
     level,
+    levels,
     speaking,
     secondsLeft,
     start,

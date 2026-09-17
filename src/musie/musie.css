@@ -215,6 +215,11 @@ body {
   gap: var(--space-gap-inline);
 }
 
+/* The accordion's actions, right-aligned under the chevron that opened them. */
+.musie-card__actions--end {
+  justify-content: flex-end;
+}
+
 .musie-card__handle {
   cursor: grab;
   touch-action: none;
@@ -288,28 +293,13 @@ body {
   .musie-dots span { animation: none; opacity: 0.55; }
 }
 
-/* ── Microphone level ─────────────────────────────────────────────────────
-   Voice Note's dot says "recording"; this says "and it can hear you", which
-   is the difference between a dead microphone and a quiet room. Decorative:
-   the state itself is announced by Voice Note's own status region. */
-.musie-meter {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--sp-1) / 2);
-  height: var(--icon-size-lg);
-}
-
-.musie-meter span {
-  width: var(--border-width-thick);
-  height: var(--icon-size-lg);
-  border-radius: var(--radius-full);
-  background-color: var(--border-strong);
-  transform-origin: center;
-  transition: transform var(--motion-toggle), background-color var(--motion-toggle);
-}
-
-.musie-meter[data-speaking] span {
-  background-color: var(--interactive-primary);
+/* Caption under the record control. §4 allows body-sm for metadata, which is
+   what this is — the statement text stays at the body floor. */
+.musie-note {
+  margin: 0;
+  color: var(--on-surface-muted);
+  text-wrap: var(--text-wrap-body);
+  max-width: var(--measure-body);
 }
 
 /* ── Toast ────────────────────────────────────────────────────────────────

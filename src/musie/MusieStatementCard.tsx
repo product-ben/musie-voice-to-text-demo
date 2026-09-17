@@ -1,8 +1,8 @@
 import { useId, useState } from "react";
 import { ChevronDown, GripVertical, Pencil, Trash2 } from "lucide-react";
-import { ContentBox } from "../../reference/musie_260915/components/ContentBox";
-import { CtaButton } from "../../reference/musie_260915/components/CtaButton";
-import { IconButton } from "../../reference/musie_260915/components/IconButton";
+import { ContentBox } from "../../reference/musie260917/components/ContentBox";
+import { CtaButton } from "../../reference/musie260917/components/CtaButton";
+import { IconButton } from "../../reference/musie260917/components/IconButton";
 import type { DropMode, Sentence } from "../transcript/types";
 
 type Props = {
@@ -158,12 +158,15 @@ export function MusieStatementCard({
       </div>
 
       {editable && !editing && menuOpen && (
-        <div className="musie-card__actions" id={menuId}>
-          <CtaButton variant="ghost" leadingIcon={Pencil} data-no-drag="" onClick={startEditing}>
-            Edit
-          </CtaButton>
+        // Right-aligned under the chevron that opened them, with Edit
+        // outermost. Delete leads in the DOM so the tab order matches what is
+        // on screen rather than contradicting it.
+        <div className="musie-card__actions musie-card__actions--end" id={menuId}>
           <CtaButton variant="ghost" leadingIcon={Trash2} data-no-drag="" onClick={onDelete}>
             Delete
+          </CtaButton>
+          <CtaButton variant="ghost" leadingIcon={Pencil} data-no-drag="" onClick={startEditing}>
+            Edit
           </CtaButton>
         </div>
       )}

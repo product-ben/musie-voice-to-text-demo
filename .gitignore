@@ -13,7 +13,7 @@ dist
 # the build actually imports are committed, so deploying the page does not also
 # publish the internal docs, proof pages and screenshots to a public repo.
 reference/*
-!reference/musie_260915/
-reference/musie_260915/*
-!reference/musie_260915/tokens/
-!reference/musie_260915/components/
+!reference/musie260917/
+reference/musie260917/*
+!reference/musie260917/tokens/
+!reference/musie260917/components/

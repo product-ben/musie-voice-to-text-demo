@@ -72,4 +72,8 @@ export { VoiceNote } from './VoiceNote';
 export type { VoiceNoteProps, VoiceNoteState } from './VoiceNote';
 
 export { TrackButton, MusicPlayer, trackClock } from './MusicPlayer';
+
 export type { TrackButtonProps, MusicPlayerProps, MusicTransport } from './MusicPlayer';
+
+export { RecordButton, recordClock } from './RecordButton';
+export type { RecordButtonProps, RecordButtonState } from './RecordButton';
