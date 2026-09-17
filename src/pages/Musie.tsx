@@ -14,6 +14,7 @@ import "../musie/musie.css";
 
 import { DEFAULT_MODEL, type LanguageChoice, type TranscriptionModel } from "../config";
 import { useTranscription } from "../hooks/useTranscription";
+import { MusieRules } from "../musie/MusieRules";
 import { MusieTranscriptWorkspace } from "../musie/MusieTranscriptWorkspace";
 import { useMusyTheme } from "../musie/theme";
 
@@ -43,7 +44,7 @@ function useMusyFonts() {
   }, []);
 }
 
-export function Musie() {
+export function Musie({ rules = false }: { rules?: boolean } = {}) {
   useMusyFonts();
   const [theme, toggleTheme] = useMusyTheme();
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem(KEY_STORAGE) ?? "");
@@ -68,7 +69,7 @@ export function Musie() {
         <div className="musie-intro">
           <header className="musie-page__head">
             <h1 className="musie-page__title" data-type-step="heading-lg">
-              The transcript workspace, in Musy
+              {rules ? "Layout rules — open questions" : "The transcript workspace, in Musy"}
             </h1>
             <Switch
               label={theme === "dark" ? "Dark" : "Light"}
@@ -81,52 +82,61 @@ export function Musie() {
           </header>
 
           <p className="musie-prose" data-type-step="body-md">
-            The same component as on the Demo page, with the same hooks behind it.
-            Every part you can see is a released Musy component — Record Button,
-            Content Box, Message, Switch, CTA Button, Icon Button, Badge — and the
-            only CSS written for this page is the layout between them, in tokens.
+            {rules
+              ? "Every question docs/10-layout-rules.md and 11-additional-components.md " +
+                "leave open, as a side-by-side. The left column is what ships today."
+              : "The same component as on the Demo page, with the same hooks behind it. " +
+                "Every part you can see is a released Musy component — Record Button, " +
+                "Content Box, Message, Switch, CTA Button, Icon Button, Badge — and the " +
+                "only CSS written for this page is the layout between them, in tokens."}
           </p>
         </div>
 
-        {/* The field and the message explaining why it matters are one
-            molecule: --space-gap-stack between them, per §5. */}
-        <div className="musie-key">
-          <div className="musy-field">
-            <label className="musy-field__label" htmlFor={keyId}>
-              OpenAI API key
-            </label>
-            <input
-              id={keyId}
-              type="password"
-              className="musy-field__control"
-              value={apiKey}
-              autoComplete="off"
-              placeholder="sk-…"
-              onChange={(event) => saveKey(event.target.value)}
-              data-filled={apiKey ? "" : undefined}
-            />
-            <p className="musy-field__description">
-              Kept in this browser tab only and sent only to api.openai.com. Shared
-              with the Demo page, so entering it once is enough.
-            </p>
-          </div>
+        {rules ? (
+          <MusieRules />
+        ) : (
+          <>
+            {/* The field and the message explaining why it matters are one
+                molecule: --space-gap-stack between them, per §5. */}
+            <div className="musie-key">
+              <div className="musy-field">
+                <label className="musy-field__label" htmlFor={keyId}>
+                  OpenAI API key
+                </label>
+                <input
+                  id={keyId}
+                  type="password"
+                  className="musy-field__control"
+                  value={apiKey}
+                  autoComplete="off"
+                  placeholder="sk-…"
+                  onChange={(event) => saveKey(event.target.value)}
+                  data-filled={apiKey ? "" : undefined}
+                />
+                <p className="musy-field__description">
+                  Kept in this browser tab only and sent only to api.openai.com. Shared
+                  with the Demo page, so entering it once is enough.
+                </p>
+              </div>
 
-          {!apiKey && (
-            <Message
-              variant="info"
-              headline="Add a key to record"
-              text="Recording is disabled until a key is entered. Everything else on the page is live — the layout, the theme, and the editing controls once statements exist."
-            />
-          )}
-        </div>
+              {!apiKey && (
+                <Message
+                  variant="info"
+                  headline="Add a key to record"
+                  text="Recording is disabled until a key is entered. Everything else on the page is live — the layout, the theme, and the editing controls once statements exist."
+                />
+              )}
+            </div>
 
-        <MusieTranscriptWorkspace
-          session={session}
-          canRecord={Boolean(apiKey)}
-          onStart={(options) =>
-            session.start(apiKey, model, language, "silence", options)
-          }
-        />
+            <MusieTranscriptWorkspace
+              session={session}
+              canRecord={Boolean(apiKey)}
+              onStart={(options) =>
+                session.start(apiKey, model, language, "silence", options)
+              }
+            />
+          </>
+        )}
 
         <footer className="musie-row">
           <CtaButton

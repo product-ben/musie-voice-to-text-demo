@@ -13,7 +13,9 @@ export function App() {
   return (
     <main>
       <Nav route={route} />
-      {route === "/musie" ? (
+      {route === "/rules" ? (
+        <Musie rules />
+      ) : route === "/musie" ? (
         // The design-system page stands on its own: the explainers below are
         // written in this app's voice and styling, and would undercut it.
         <Musie />

@@ -410,3 +410,53 @@ body {
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
+
+/* ── Rules page ───────────────────────────────────────────────────────────
+   Only for the side-by-sides on #/rules. Token-only like the rest, and kept
+   out of the workspace's own blocks so it can be deleted in one piece. */
+.musie-rules__pair {
+  display: grid;
+  gap: var(--space-gap-group);
+  grid-template-columns: 1fr;
+}
+
+/* Side by side once there is room for two readable columns — --bp-md, the
+   point Layer 1 calls tablet portrait. */
+@media (min-width: 768px) {
+  .musie-rules__pair { grid-template-columns: 1fr 1fr; }
+}
+
+.musie-rules__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap-related);
+  min-inline-size: 0;
+}
+
+/* The second row keeps the same visual order with reversed markup, which is
+   the whole point of Q2: identical on screen, different to a keyboard. */
+.musie-rules__reversed { flex-direction: row-reverse; }
+
+/* A drop indicator needs something to sit between to be judged. */
+.musie-rules__drop {
+  padding: var(--space-inset-card);
+  border-radius: var(--radius-card);
+  background-color: var(--surface-raised);
+  border: var(--border-width-regular) var(--border-style-solid) var(--border-subtle);
+}
+
+/* The solid accent, for comparison only. Ships as the -border step: see §10.9. */
+.musie-rules__drop--solid { background-color: var(--interactive-accent-placeholder2); }
+
+/* A phone column at any viewport, so the overflow in Q7 is visible on a laptop. */
+.musie-rules__narrow {
+  inline-size: min(100%, calc(var(--sp-8) * 4 + var(--sp-6)));
+}
+
+/* The rejected alternative in Q1: controls under the text instead of floated. */
+.musie-rules__stacked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap-stack);
+  align-items: flex-start;
+}
