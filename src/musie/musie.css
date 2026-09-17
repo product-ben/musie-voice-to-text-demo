@@ -241,7 +241,19 @@ body {
   height: var(--border-width-thick);
   border-radius: var(--radius-full);
   background-color: var(--interactive-accent-placeholder2-border);
+  /* --sp-1 is the smallest step in the scale, and the line wants the same
+     clearance on both sides. */
+  margin-block: var(--sp-1);
 }
+
+/* The indicator lives inside a list item, but it reads as sitting BETWEEN two
+   statements — so the list's own gap on its outer side is absorbed. Without
+   this it would sit --sp-1 from the card it is inside and --space-gap-stack
+   from the one it is pointing at, which is the asymmetry you see as "space
+   only below". Both values are the same tokens the list uses, so the two stay
+   in step if either changes. */
+.musie-drop:first-child { margin-block-start: calc(var(--sp-1) - var(--space-gap-stack)); }
+.musie-drop:last-child { margin-block-end: calc(var(--sp-1) - var(--space-gap-stack)); }
 
 /* Follows the finger, so the gesture has something to hold on to. */
 .musie-drag-preview {
