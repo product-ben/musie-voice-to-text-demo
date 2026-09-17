@@ -1,0 +1,81 @@
+/* ═══ 23 · TOAST ═══════════════════════════════════════════════════════════
+   Append verbatim to components/musy-components.css, after §22 Record Button.
+
+   Confirms an action that has already happened and offers the one way back,
+   without moving the content the user is reading. §10 Message is in-flow and
+   pushes layout; this is not, which is the whole difference.
+
+   THE LAYER ALREADY EXISTED. Layer 1 ships --z-toast above --z-sheet with the
+   stated reason that a confirmation must clear an open sheet. This is its
+   first consumer.
+
+   ELEVATION 3, NOT 2. It outranks a sheet, so it must not read as a lifted
+   card sitting under one.
+
+   Token-only, like the rest of this file: no literal colour, space or motion.
+   Geometry is --space-inset-control inside, --space-gap-stack between the
+   three parts.                                                              */
+
+.musy-toast {
+  position: fixed;
+  z-index: var(--z-toast);
+  inset-block-end: var(--space-gap-group);
+  /* Centred without knowing its own width: equal insets plus auto margins. The
+     inline inset is what keeps it clear of both edges at 393px. */
+  inset-inline: var(--space-gap-stack);
+  margin-inline: auto;
+  width: fit-content;
+  max-width: var(--measure-heading);
+
+  display: flex;
+  align-items: center;
+  gap: var(--space-gap-stack);
+  padding: var(--space-inset-control);
+
+  border: var(--border-width-regular) var(--border-style-solid) var(--border-subtle);
+  border-radius: var(--radius-card);
+  background-color: var(--surface-overlay);
+  color: var(--on-surface);
+  box-shadow: var(--elevation-3);
+
+  animation: musy-toast-in var(--motion-duration-base) var(--motion-ease-entrance);
+}
+
+.musy-toast__text {
+  margin: 0;
+  color: inherit;
+  text-wrap: var(--text-wrap-body);
+}
+
+/* Identical to §10's dismiss, deliberately: the two dismiss affordances in the
+   system should not differ by a pixel. Ghost, --target-primary, pulled back by
+   --sp-2 so the icon lines up with the text rather than the target. */
+.musy-toast__dismiss {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: var(--target-primary);
+  height: var(--target-primary);
+  margin: calc(var(--sp-2) * -1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color var(--motion-toggle);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .musy-toast__dismiss:hover,
+  .musy-toast__dismiss[data-force~="hover"] { background-color: var(--interactive-ghost-hover); }
+}
+
+.musy-toast__dismiss:active { background-color: var(--interactive-ghost-active); }
+
+/* Travel comes from a token, so Layer 1 flattens it under reduced motion with
+   no query here. */
+@keyframes musy-toast-in {
+  from { opacity: 0; transform: translateY(var(--motion-travel-sm)); }
+  to   { opacity: 1; transform: translateY(0); }
+}
