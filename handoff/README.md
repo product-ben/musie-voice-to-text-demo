@@ -18,6 +18,8 @@ Design with this folder attached, and it sets the order of work.
 | [`10-layout.md`](10-layout.md) | **Layer 3 — Layout.** Fifteen rules, L1–L15 | File at `docs/10-layout.md` |
 | [`11-toast.md`](11-toast.md) | Toast, specified in §07's format | Becomes §7.23 of `07-components.md`, and `docs/11-toast.md` |
 | [`12-component-gaps.md`](12-component-gaps.md) | Five decided changes to Layer 1 and Layer 2, each with the exact edit | Apply, then file at `docs/12-component-gaps.md` |
+| [`13-draggable-list.md`](13-draggable-list.md) | **Draggable List**, specified in §07's format — twelve states, in a matrix | Becomes §7.24, and `docs/13-draggable-list.md` |
+| [`workspace/`](workspace) | The record · transcribe · edit screen as source, and the component inside it | Read `workspace/README.md` |
 | [`toast/Toast.tsx`](toast/Toast.tsx) | Working component source, in the package's conventions | Drop into `components/`, add two exports to `index.ts` |
 | [`toast/toast.css`](toast/toast.css) | The §23 stylesheet block | Append to `components/musy-components.css` after §22 |
 | [`evidence.md`](evidence.md) | Every measurement the rules rest on, and how it was taken | Check anything that looks wrong |
@@ -35,9 +37,13 @@ the same components stop looking like one product. Layer 3 is that.
 that order. And thumb-first, right-handed — which is why a primary CTA is
 right-aligned to its parent, and a Continue button always is.
 
-**One new component.** Toast. The system has no toast and says so twice, yet
-Layer 1 ships `--z-toast` ranked above `--z-sheet` with a stated rationale. A
-layer with no consumer.
+**Two new components.** **Draggable List** is the one this was all built
+around: a list the user reorders, merges, corrects and deletes in place. Twelve
+states, three of them mutually exclusive in a way that is easy to get wrong by
+hand — which is what makes it a component rather than a composition. And
+**Toast**: the system says twice that it has no toast, yet Layer 1 ships
+`--z-toast` ranked above `--z-sheet` with a written rationale. A layer with no
+consumer.
 
 **Five things to change in the system itself.** Two are documentation — §5.4's
 wording and the palette's step-9 comment. Two are small component changes to
@@ -52,6 +58,8 @@ A voice-to-text demo, restyled entirely in Musy as one route of a plainly-styled
 app:
 
 - **The screen** — https://product-ben.github.io/musie-voice-to-text-demo/#/musie
+- **Every state of the list**, from the same component —
+  https://product-ben.github.io/musie-voice-to-text-demo/#/states
 - **Each decision, as the side-by-side that settled it** —
   https://product-ben.github.io/musie-voice-to-text-demo/#/rules
 - **The implementation** — `src/musie/` in that repo. `musie.css` is the working

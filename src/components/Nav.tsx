@@ -2,6 +2,7 @@ const PAGES = [
   { href: "#/", label: "Demo" },
   { href: "#/lab", label: "Segmentation lab" },
   { href: "#/musie", label: "Musy design system" },
+  { href: "#/states", label: "List states" },
   { href: "#/rules", label: "Layout decisions" },
 ];
 
