@@ -4,6 +4,7 @@ import {
   CLIENT_SILENCE_MS,
   IDLE_STOP_MS,
   MODELS,
+  STOP_GRACE_MS,
   SESSION_SECONDS,
   type LanguageChoice,
   type SegmentationMode,
@@ -32,6 +33,8 @@ export type StopReason = "manual" | "timeout" | "silence" | "error" | null;
 export function useTranscription() {
   const [status, setStatus] = useState<Status>("idle");
   const list = useSentences();
+  /** Pulled out because it is stable; see saveStatement. */
+  const { append } = list;
   const [interim, setInterim] = useState("");
   /**
    * True from the moment speech is heard until the statement lands, so the
@@ -59,6 +62,13 @@ export function useTranscription() {
   const silentSince = useRef<number | null>(null);
   /** Last moment any audible sound arrived, for the idle cut-off. */
   const lastSound = useRef(0);
+  /** Mirrors `interim`, so the stop timer reads it without a stale closure. */
+  const interimText = useRef("");
+  /** The running session's settings, needed to finalise after Stop. */
+  const sessionLanguage = useRef<string>("de");
+  const sessionSegmentation = useRef<SegmentationMode>("silence");
+  /** Set while Stop is waiting for the sentence that was still in flight. */
+  const stopTimer = useRef<number | null>(null);
   /**
    * Whether a statement is still being transcribed. The idle timer reads it,
    * and it must be a ref: the timer callback would otherwise close over the
@@ -66,23 +76,94 @@ export function useTranscription() {
    */
   const awaitingStatement = useRef(false);
 
-  const stop = useCallback((reason: StopReason = "manual") => {
-    recorder.current?.stop();
-    recorder.current = null;
-    connection.current?.close();
-    connection.current = null;
+  /**
+   * Turns one finished turn into statements and fires the hook. Shared by the
+   * `completed` event and by the fallback when Stop beats it, so both paths
+   * clean and split the text identically.
+   *
+   * Depends on `append`, which is stable, rather than on `list`, which is a new
+   * object every render — `stop` has to keep its identity, because the
+   * countdown effect restarts whenever it changes.
+   */
+  const saveStatement = useCallback(
+    (text: string, language: string) => {
+      // One turn can yield several sentences in punctuation mode. Hesitation
+      // sounds are cleaned off as the statement becomes a card; the live grey
+      // text still shows what was actually said.
+      const parts = segment(text, sessionSegmentation.current)
+        .map((part) => stripFillers(part, language))
+        .filter(Boolean);
+      if (parts.length === 0) return;
+      append(parts, language);
+      parts.forEach((part) => onSentenceFinal(part, language));
+    },
+    [append],
+  );
+
+  /** Clears whatever was in flight and drops the socket. */
+  const settle = useCallback(() => {
+    if (stopTimer.current !== null) {
+      clearTimeout(stopTimer.current);
+      stopTimer.current = null;
+    }
     setInterim("");
+    interimText.current = "";
     setPending(false);
     awaitingStatement.current = false;
-    setLevel(0);
-    setLevels([]);
-    setSpeaking(false);
-    setStatus((previous) => {
-      // Only record a reason if a session was actually running.
-      if (previous !== "idle") setStopReason(reason);
-      return "idle";
-    });
+    connection.current?.close();
+    connection.current = null;
   }, []);
+
+  /**
+   * Ends a Stop that is still waiting. Nothing came back in time, so the words
+   * already on screen become the statement — they were captured, and captured
+   * words are not thrown away. A no-op when no stop is pending.
+   */
+  const finishPendingStop = useCallback(() => {
+    if (stopTimer.current === null) return;
+    if (interimText.current.trim()) {
+      saveStatement(interimText.current, sessionLanguage.current);
+    }
+    settle();
+  }, [saveStatement, settle]);
+
+  const stop = useCallback(
+    (reason: StopReason = "manual", options?: { immediate?: boolean }) => {
+      // The microphone closes at once. Stop always means stop capturing.
+      recorder.current?.stop();
+      recorder.current = null;
+      setLevel(0);
+      setLevels([]);
+      setSpeaking(false);
+      setStatus((previous) => {
+        // Only record a reason if a session was actually running.
+        if (previous !== "idle") setStopReason(reason);
+        return "idle";
+      });
+
+      const socket = connection.current;
+      /**
+       * Half a sentence is still a sentence. If a turn is open, ask OpenAI to
+       * transcribe what it already has and hold the socket open for the answer.
+       * A fatal error has a broken socket to wait on, and an unmount has
+       * nowhere to put the result, so neither waits.
+       */
+      const unfinished =
+        socket !== null &&
+        awaitingStatement.current &&
+        reason !== "error" &&
+        !options?.immediate;
+
+      if (!unfinished) {
+        settle();
+        return;
+      }
+
+      socket.commit();
+      stopTimer.current = window.setTimeout(finishPendingStop, STOP_GRACE_MS);
+    },
+    [finishPendingStop, settle],
+  );
 
   const start = useCallback(
     async (
@@ -92,6 +173,12 @@ export function useTranscription() {
       segmentation: SegmentationMode = "silence",
       options?: { keepExisting?: boolean },
     ) => {
+      // Recording again while the last stop is still waiting: keep that
+      // statement rather than dropping it on the floor.
+      finishPendingStop();
+      sessionLanguage.current = language;
+      sessionSegmentation.current = segmentation;
+
       setError(null);
       setWarning(null);
       setStopReason(null);
@@ -124,22 +211,19 @@ export function useTranscription() {
             break;
           case "interim":
             setInterim(event.text);
+            interimText.current = event.text;
             setPending(true);
             awaitingStatement.current = true;
             break;
           case "final": {
+            const stopping = stopTimer.current !== null;
             setInterim("");
+            interimText.current = "";
             setPending(false);
             awaitingStatement.current = false;
-            // One turn can yield several sentences in punctuation mode.
-            // Hesitation sounds are cleaned off as the statement becomes a
-            // card; the live grey text still shows what was actually said.
-            const parts = segment(event.text, segmentation)
-              .map((part) => stripFillers(part, event.language))
-              .filter(Boolean);
-            if (parts.length === 0) break;
-            list.append(parts, event.language);
-            parts.forEach((part) => onSentenceFinal(part, event.language));
+            saveStatement(event.text, event.language);
+            // This is the turn Stop was waiting for; nothing more is coming.
+            if (stopping) settle();
             break;
           }
           // Non-fatal: one sentence was lost, recording continues.
@@ -147,8 +231,10 @@ export function useTranscription() {
             setWarning(event.message);
             // That turn will never arrive, so stop waiting for it.
             setInterim("");
+            interimText.current = "";
             setPending(false);
             awaitingStatement.current = false;
+            if (stopTimer.current !== null) settle();
             break;
           case "error":
             setError(event.message);
@@ -202,7 +288,7 @@ export function useTranscription() {
         stop("error");
       }
     },
-    [stop, list],
+    [stop, settle, saveStatement, finishPendingStop, list],
   );
 
   // The countdown reads a fixed deadline, so stopping happens inside the timer
@@ -229,11 +315,11 @@ export function useTranscription() {
 
   // Close the socket if the tab is closed mid-session.
   useEffect(() => {
-    const handleUnload = () => stop("manual");
+    const handleUnload = () => stop("manual", { immediate: true });
     window.addEventListener("beforeunload", handleUnload);
     return () => {
       window.removeEventListener("beforeunload", handleUnload);
-      stop("manual");
+      stop("manual", { immediate: true });
     };
   }, [stop]);
 

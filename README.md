@@ -135,6 +135,24 @@ reasons, and the UI always names the one that applied:
 | `IDLE_STOP_MS` of silence | "Stopped after 6s of silence." |
 | A fatal error | "Stopped because of the error above." |
 
+**Stop keeps the sentence you were part-way through.** Pressing Stop mid-word
+used to close the socket at once, so OpenAI never received the commit, never
+sent the transcript, and the words already on screen were cleared — the sentence
+vanished. Now Stop closes the microphone immediately, sends
+`input_audio_buffer.commit`, and holds the socket open for `STOP_GRACE_MS`
+(2500ms). Whichever comes first wins:
+
+| What happens | Result |
+| --- | --- |
+| The `completed` event arrives | The full transcript becomes a statement, socket closes. Measured at ~250ms |
+| The grace window expires first | The words already on screen become the statement instead |
+| Nothing was in flight (Stop during a pause) | No commit, socket closes in ~1ms, no duplicate |
+
+The fallback is the part that makes the guarantee unconditional: captured words
+are never dropped, even if the commit goes unanswered. An `input_audio_buffer`
+error is ignored rather than bannered — committing an empty buffer is the
+ordinary outcome of stopping in a pause.
+
 The silence cut-off runs from the moment recording starts and resets on any audible
 chunk, so it also catches a session started and then walked away from — billing
 follows audio streamed, and silence is billed like anything else. It never fires

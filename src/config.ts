@@ -94,6 +94,17 @@ export const SESSION_SECONDS = 60;
  */
 export const IDLE_STOP_MS = 6000;
 
+/**
+ * How long Stop waits for the sentence you were part-way through.
+ *
+ * Pressing Stop mid-word used to close the socket at once, which threw that
+ * sentence away — OpenAI never got the commit, so the transcript never came
+ * back. Now the buffer is committed and the socket is held open this long for
+ * the answer. If it does not arrive, whatever was already on screen is saved
+ * instead, so nothing captured is ever silently dropped.
+ */
+export const STOP_GRACE_MS = 2500;
+
 /** The Realtime API expects mono 16-bit PCM at this rate. */
 export const SAMPLE_RATE = 24000;
 

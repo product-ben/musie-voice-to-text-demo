@@ -91,6 +91,10 @@ export function connectRealtime(
       }
 
       case "error": {
+        // Committing an empty buffer is the ordinary outcome of pressing Stop
+        // during a pause: there was nothing left to transcribe. Not a problem,
+        // and a banner for it would be noise.
+        if ((event.error?.code ?? "").startsWith("input_audio_buffer")) break;
         const { fatal, message } = classifyError(event.error, segmentation);
         onEvent({ type: fatal ? "error" : "warning", message });
         break;
